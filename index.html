@@ -1,0 +1,2828 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TikZ → Ảnh | Công cụ vẽ hình Toán học thông minh</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- TikZJax for client-side WebAssembly rendering (Không cần cài đặt LaTeX) -->
+  <link rel="stylesheet" type="text/css" href="https://tikzjax.com/v1/fonts.css">
+  <script src="https://tikzjax.com/v1/tikzjax.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink:        #0f1d2e;
+      --ink-light:  #4a6080;
+      --paper:      #f4f6fa;
+      --surface:    #ffffff;
+      --border:     #d7dfe9;
+      --accent:     #132b45;
+      --accent-mid: #1d4673;
+      --accent-lit: #2563eb;
+      --gold:       #f59e0b;
+      --gold-hover: #d97706;
+      --teal:       #0d9488;
+      --teal-hover: #0f766e;
+      --ok:         #16a34a;
+      --ok-bg:      #f0fdf4;
+      --err:        #dc2626;
+      --err-bg:     #fef2f2;
+      --grid:       #e2e8f0;
+      --radius:     10px;
+      --font-ui:    'Inter', system-ui, -apple-system, sans-serif;
+      --font-code:  'JetBrains Mono', monospace;
+    }
+
+    html, body { height: 100%; font-family: var(--font-ui); background: var(--paper); color: var(--ink); font-size: 14.5px; }
+    .app { display: grid; grid-template-rows: 56px 1fr auto; min-height: 100vh; height: 100vh; overflow: hidden; }
+
+    /* Header */
+    header {
+      background: var(--accent);
+      color: #fff;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+      z-index: 10;
+    }
+    .brand { display: flex; align-items: center; gap: 8px; text-decoration: none; color: #fff; }
+    .logo {
+      width: 32px; height: 32px;
+      background: var(--gold);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 19px; font-weight: 700; color: var(--accent);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+    header h1 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+    header .subtitle { font-size: 12px; color: rgba(255,255,255,0.6); }
+
+    /* Engine Selector Switch */
+    .engine-toggle {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      background: rgba(0, 0, 0, 0.28);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 8px;
+      padding: 2px;
+      margin-left: 8px;
+    }
+    .eng-btn {
+      padding: 4px 9px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.72);
+      background: transparent;
+      transition: all 0.15s;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .eng-btn.active {
+      background: var(--accent-lit);
+      color: #fff;
+      font-weight: 600;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+    .eng-btn:not(.active):hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .status-pill {
+      font-size: 11px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 4px 9px;
+      border-radius: 20px;
+      color: rgba(255,255,255,0.85);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #94a3b8; }
+    .status-dot.active { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+
+    .key-badge {
+      font-size: 11px;
+      background: rgba(37,99,235,0.3);
+      border: 1px solid rgba(147,197,253,0.4);
+      padding: 3px 8px;
+      border-radius: 12px;
+      color: #93c5fd;
+      display: flex; align-items: center; gap: 4px;
+      cursor: pointer;
+    }
+    .key-badge:hover { background: rgba(37,99,235,0.5); }
+
+    .model-select {
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 11.5px;
+      outline: none;
+      cursor: pointer;
+      font-family: var(--font-ui);
+      max-width: 170px;
+    }
+    .model-select option { background: var(--accent); color: #fff; }
+
+    .btn-icon {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+      border-radius: 6px;
+      width: 30px; height: 30px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.15s;
+    }
+    .btn-icon:hover { background: rgba(255,255,255,0.22); }
+
+    /* Workspace */
+    .workspace { display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; height: calc(100vh - 56px - 32px); }
+    @media(max-width: 860px) {
+      .workspace { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; height: auto; overflow: auto; }
+      .app { height: auto; overflow: auto; }
+    }
+
+    /* Panel */
+    .panel { display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border); overflow: hidden; }
+    .panel-right { border-right: none; background: var(--paper); }
+
+    /* Tabs */
+    .tabs { display: flex; border-bottom: 1px solid var(--border); background: #fafbfd; flex-shrink: 0; }
+    .tab {
+      flex: 1; padding: 12px 10px;
+      text-align: center; font-size: 13px; font-weight: 500;
+      cursor: pointer; color: var(--ink-light);
+      border-bottom: 2.5px solid transparent;
+      transition: all 0.15s; user-select: none;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .tab:hover { background: var(--paper); color: var(--ink); }
+    .tab.active { color: var(--accent-lit); border-bottom-color: var(--accent-lit); font-weight: 600; background: var(--surface); }
+
+    .tab-pane { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+    .tab-pane.active { display: flex; }
+
+    /* Body */
+    .scroll-body { flex: 1; display: flex; flex-direction: column; padding: 16px; gap: 14px; overflow-y: auto; }
+    .field-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-light); margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; }
+    
+    .ai-textarea {
+      width: 100%; min-height: 100px; padding: 12px;
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      font-family: var(--font-ui); font-size: 14px; line-height: 1.6;
+      resize: vertical; outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+      color: var(--ink); background: #fff;
+    }
+    .ai-textarea:focus { border-color: var(--accent-lit); box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+    .ai-textarea::placeholder { color: #94a3b8; }
+
+    .chip-scroll-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      position: relative;
+    }
+    .btn-scroll-nav {
+      width: 22px;
+      height: 26px;
+      border: 1px solid var(--border);
+      background: #f8fafc;
+      color: var(--ink-light);
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+    .btn-scroll-nav:hover {
+      background: #eff6ff;
+      border-color: var(--accent-lit);
+      color: var(--accent-lit);
+    }
+    .chip-scroll-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+      white-space: nowrap;
+      padding: 2px 2px 4px 2px;
+      scrollbar-width: thin;
+      scrollbar-color: #cbd5e1 transparent;
+      scroll-behavior: smooth;
+    }
+    .chip-scroll-container::-webkit-scrollbar {
+      height: 3px;
+    }
+    .chip-scroll-container::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      padding: 4px 10px; border-radius: 14px;
+      border: 1px solid var(--border); font-size: 11.5px; color: var(--ink);
+      cursor: pointer; transition: all 0.15s; background: var(--surface);
+      user-select: none; white-space: nowrap; flex-shrink: 0;
+    }
+    .chip:hover { border-color: var(--accent-lit); color: var(--accent-lit); background: #eff6ff; }
+
+    /* Step Cards & Khu vực hiển thị mã TikZ */
+    .step-card {
+      border: 1px solid #cbd5e1; border-radius: var(--radius);
+      background: #fafbfd; overflow: hidden; display: flex;
+      flex-direction: column; flex-shrink: 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .step-card-header {
+      background: #f1f5f9; padding: 8px 12px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid #cbd5e1; font-size: 12px; font-weight: 600; color: var(--accent);
+    }
+    .step-badge {
+      font-size: 10.5px; font-weight: 700; background: var(--accent-mid);
+      color: #fff; padding: 2px 7px; border-radius: 4px; text-transform: uppercase;
+    }
+    .step-card-body {
+      padding: 10px 12px; font-size: 12.5px; line-height: 1.6;
+      color: #1e293b; max-height: 140px; overflow-y: auto; white-space: pre-wrap;
+    }
+    .code-preview-box {
+      background: #0f172a; color: #e2e8f0; font-family: var(--font-code);
+      font-size: 12.5px; line-height: 1.65; padding: 12px 14px;
+      white-space: pre-wrap; word-break: break-all; min-height: 170px; max-height: 320px; overflow-y: auto;
+    }
+
+    /* Image Attachment & Drag Drop Zone */
+    .image-preview-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: var(--radius);
+      padding: 8px 12px;
+      margin-top: 8px;
+    }
+    .image-preview-thumb {
+      width: 50px;
+      height: 50px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid #94a3b8;
+      background: #fff;
+      cursor: pointer;
+    }
+    .image-preview-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow: hidden;
+    }
+    .image-preview-title {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--ink);
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+    .image-preview-sub {
+      font-size: 11px;
+      color: var(--ink-light);
+    }
+    .btn-remove-image {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fca5a5;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-remove-image:hover {
+      background: #fecaca;
+      color: #991b1b;
+    }
+    .attach-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+    .btn-attach {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 11px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #1e293b;
+      background: #f8fafc;
+      border: 1px dashed #94a3b8;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-attach:hover {
+      background: #eff6ff;
+      border-color: var(--accent-lit);
+      color: var(--accent-lit);
+    }
+    .ai-code-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      background: #1e293b;
+      border-top: 1px solid #334155;
+      flex-wrap: wrap;
+      border-radius: 0 0 var(--radius) var(--radius);
+    }
+    .btn-quick-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 9px;
+      font-size: 11.5px;
+      font-weight: 600;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-quick-copy { background: #334155; color: #f8fafc; }
+    .btn-quick-copy:hover { background: #475569; }
+    .btn-quick-texlive { background: #2563eb; color: #fff; }
+    .btn-quick-texlive:hover { background: #1d4ed8; }
+    .btn-quick-local { background: #059669; color: #fff; }
+    .btn-quick-local:hover { background: #047857; }
+    .btn-quick-editor { background: #d97706; color: #fff; margin-left: auto; }
+    .btn-quick-editor:hover { background: #b45309; }
+
+    /* Prompt Pane */
+    .prompt-result {
+      flex: 1; min-height: 160px;
+      background: #fafbfd; border: 1.5px solid var(--border); border-radius: var(--radius);
+      padding: 14px; font-family: var(--font-ui); font-size: 13.5px; line-height: 1.65;
+      color: var(--ink); white-space: pre-wrap; overflow-y: auto; display: none;
+    }
+    .prompt-result.visible { display: block; }
+    .prompt-placeholder {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 10px; color: var(--ink-light); text-align: center; font-size: 13.5px; padding: 30px 20px;
+      border: 1.5px dashed var(--border); border-radius: var(--radius);
+    }
+
+    /* Code Pane */
+    .editor-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+    .editor-toolbar {
+      padding: 8px 14px; border-bottom: 1px solid var(--border); background: #f8fafc;
+      display: flex; align-items: center; gap: 8px; flex-shrink: 0; font-size: 12.5px;
+    }
+    .template-select {
+      font-size: 12.5px; padding: 4px 8px; border: 1px solid var(--border);
+      border-radius: 6px; background: #fff; color: var(--ink); outline: none; cursor: pointer;
+    }
+
+    /* Preamble section (Có thể bung/đóng để tùy chỉnh package) */
+    .preamble-section {
+      border-bottom: 1px solid var(--border);
+      background: #f8fafc;
+      flex-shrink: 0;
+    }
+    .preamble-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 14px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--ink-light);
+      cursor: pointer;
+      user-select: none;
+      background: #f1f5f9;
+    }
+    .preamble-header:hover { color: var(--accent-lit); }
+    .preamble-header .arrow { transition: transform 0.2s; font-size: 10px; }
+    .preamble-header.open .arrow { transform: rotate(90deg); }
+    .preamble-input {
+      width: 100%;
+      height: 0;
+      padding: 0 14px;
+      border: none;
+      outline: none;
+      resize: none;
+      background: #fdfefe;
+      color: #334155;
+      font-family: var(--font-code);
+      font-size: 11.5px;
+      line-height: 1.5;
+      overflow: hidden;
+      transition: height 0.2s, padding 0.2s;
+    }
+    .preamble-input.open {
+      height: 80px;
+      padding: 8px 14px;
+      border-top: 1px solid var(--border);
+      overflow-y: auto;
+    }
+
+    .code-editor {
+      flex: 1; width: 100%; border: none; outline: none;
+      padding: 16px; font-family: var(--font-code); font-size: 13px; line-height: 1.65;
+      color: #0f172a; background: #ffffff; resize: none; tab-size: 2;
+    }
+
+    /* Actions Bottom Bar */
+    .action-bar {
+      padding: 10px 16px; border-top: 1px solid var(--border);
+      background: #fafbfd; display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      border: none; border-radius: 8px; font-family: var(--font-ui); font-size: 13px;
+      font-weight: 500; cursor: pointer; padding: 7px 14px; transition: all 0.15s;
+      user-select: none; text-decoration: none;
+    }
+    .btn:active:not(:disabled) { transform: scale(0.98); }
+    .btn-primary { background: var(--accent-lit); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #1d4ed8; }
+    .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
+
+    .btn-gold { background: var(--gold); color: #78350f; font-weight: 600; }
+    .btn-gold:hover:not(:disabled) { background: var(--gold-hover); color: #fff; }
+    .btn-gold:disabled { background: #fde68a; color: #a1a1aa; cursor: not-allowed; }
+
+    .btn-stop { background: #ef4444; color: #fff; font-weight: 600; }
+    .btn-stop:hover { background: #dc2626; }
+
+    .btn-teal { background: var(--teal); color: #fff; }
+    .btn-teal:hover:not(:disabled) { background: var(--teal-hover); }
+    .btn-teal:disabled { background: #99f6e4; cursor: not-allowed; }
+
+    .btn-ghost { background: transparent; color: var(--ink-light); border: 1px solid var(--border); }
+    .btn-ghost:hover:not(:disabled) { background: #f1f5f9; color: var(--ink); border-color: #cbd5e1; }
+
+    .btn-copy { background: #f0fdf4; color: var(--ok); border: 1px solid #bbf7d0; font-weight: 600; }
+    .btn-copy:hover { background: #dcfce7; }
+
+    /* Right Preview Panel */
+    .preview-header {
+      padding: 10px 16px; border-bottom: 1px solid var(--border);
+      background: var(--surface); display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0; gap: 8px; flex-wrap: wrap;
+    }
+    .preview-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+
+    .preview-area {
+      flex: 1; position: relative; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--paper);
+    }
+    .bg-grid {
+      background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+    .bg-white { background: #ffffff; }
+    .bg-dark  { background: #0f172a; }
+    .bg-trans {
+      background-image: linear-gradient(45deg, #e2e8f0 25%, transparent 25%), linear-gradient(-45deg, #e2e8f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e2e8f0 75%), linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+      background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    }
+
+    .preview-viewport {
+      width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+      padding: 20px; overflow: auto; cursor: grab;
+    }
+    .preview-viewport:active { cursor: grabbing; }
+
+    #preview-img {
+      max-width: 95%; max-height: 95%;
+      border-radius: 6px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+      transition: transform 0.15s ease-out;
+      background: #fff;
+      user-select: none;
+    }
+
+    .placeholder-box {
+      text-align: center; color: var(--ink-light);
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+    }
+    .placeholder-box .icon { font-size: 48px; opacity: 0.3; }
+
+    /* Zoom / Canvas Controls Float Bar */
+    .canvas-controls {
+      position: absolute; bottom: 14px; right: 14px;
+      background: rgba(255,255,255,0.92); backdrop-filter: blur(8px);
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 4px 6px; display: flex; align-items: center; gap: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08); z-index: 5;
+    }
+    .control-btn {
+      width: 28px; height: 28px; border-radius: 6px; border: none; background: transparent;
+      color: var(--ink); cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 600;
+    }
+    .control-btn:hover { background: #e2e8f0; }
+
+    /* Error Box */
+    .error-box {
+      display: none; padding: 10px 14px; margin: 10px 14px 0;
+      background: var(--err-bg); border: 1px solid #fca5a5; border-radius: var(--radius);
+      font-family: var(--font-code); font-size: 12px; color: var(--err);
+      white-space: pre-wrap; word-break: break-all; max-height: 120px; overflow-y: auto;
+    }
+
+    /* Status bar */
+    .status-bar {
+      padding: 6px 16px; font-size: 12px; display: flex; align-items: center;
+      gap: 8px; border-top: 1px solid var(--border); background: var(--surface);
+      color: var(--ink-light); flex-shrink: 0; min-height: 32px;
+    }
+    .status-bar.ok   { color: var(--ok); font-weight: 500; }
+    .status-bar.err  { color: var(--err); font-weight: 500; }
+    .status-bar.loading { color: var(--accent-lit); font-weight: 500; }
+    .spinner {
+      width: 12px; height: 12px; border: 2px solid #cbd5e1; border-top-color: var(--accent-lit);
+      border-radius: 50%; animation: spin 0.65s linear infinite; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Footer */
+    footer {
+      height: 32px; padding: 0 16px; font-size: 12px; color: var(--ink-light);
+      border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface);
+    }
+    kbd {
+      background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px;
+      padding: 1px 5px; font-family: var(--font-code); font-size: 11px;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed; bottom: 44px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: #0f172a; color: #fff; padding: 9px 18px; border-radius: 20px;
+      font-size: 13px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      display: flex; align-items: center; gap: 8px; opacity: 0; pointer-events: none;
+      transition: all 0.25s ease-out; z-index: 100;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+
+    /* Settings Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(15,23,42,0.6); backdrop-filter: blur(4px);
+      display: none; align-items: center; justify-content: center; z-index: 200; padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: #fff; border-radius: 14px; width: 100%; max-width: 540px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.25); overflow: hidden;
+      animation: modalPop 0.2s ease-out; max-height: 90vh; display: flex; flex-direction: column;
+    }
+    @keyframes modalPop { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .modal-header {
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-header h3 { font-size: 16px; font-weight: 600; color: var(--accent); }
+    .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+    .modal-footer {
+      padding: 14px 20px; border-top: 1px solid var(--border); background: #f8fafc;
+      display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+    }
+    .input-group { display: flex; flex-direction: column; gap: 6px; }
+    .input-group label { font-size: 13px; font-weight: 600; color: var(--ink); display: flex; justify-content: space-between; }
+    .input-group input, .input-group textarea {
+      padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+      font-family: var(--font-code); font-size: 12.5px; outline: none; transition: border-color 0.15s;
+    }
+    .input-group textarea { resize: vertical; min-height: 90px; }
+    .input-group input:focus, .input-group textarea:focus { border-color: var(--accent-lit); }
+    .input-help { font-size: 11.5px; color: var(--ink-light); }
+    .input-help a { color: var(--accent-lit); text-decoration: none; }
+    .input-help a:hover { text-decoration: underline; }
+
+    .key-test-results {
+      margin-top: 6px; display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto;
+    }
+    .key-status-item {
+      font-size: 11.5px; font-family: var(--font-code); padding: 4px 8px; border-radius: 6px;
+      background: #f1f5f9; display: flex; align-items: center; justify-content: space-between;
+    }
+    .key-status-item.valid { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+    .key-status-item.invalid { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <header>
+    <a href="#" class="brand">
+      <div class="logo">∫</div>
+      <div>
+        <h1>TikZ</h1>
+      </div>
+    </a>
+    <span class="subtitle">| Vẽ hình Toán học AI</span>
+
+    <!-- Engine Selector Toggle -->
+    <div class="engine-toggle" title="Chọn Engine biên dịch TikZ">
+      <button class="eng-btn active" id="btn-eng-local" onclick="switchEngine('local')" title="Biên dịch qua pdflatex nội bộ (PNG 300/600 DPI, sao chép dán trực tiếp vào Word)">
+        🚀 Server Local
+      </button>
+      <button class="eng-btn" id="btn-eng-tikzjax" onclick="switchEngine('tikzjax')" title="Biên dịch trực tiếp bằng WebAssembly trong trình duyệt (Offline/SVG)">
+        ⚡ TikZJax
+      </button>
+      <button class="eng-btn" id="btn-eng-texlive" onclick="switchEngine('texlive')" title="Biên dịch qua TeXLive.net (Đầy đủ mọi package: pgfplots, circuitikz, chemfig)">
+        ☁️ TeXLive.net
+      </button>
+    </div>
+
+    <div class="header-right">
+      <div class="status-pill" id="server-status" title="Kiểm tra trạng thái pdflatex và poppler">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Đang kết nối...</span>
+      </div>
+
+      <div class="key-badge" id="key-badge-btn" title="Số lượng Gemini API Key sẵn sàng">
+        🔑 <span id="key-count-text">0 Key</span>
+      </div>
+
+      <select class="model-select" id="model-select" title="Chọn Model AI">
+        <!-- Nhóm Model Gemini 3.x thế hệ mới -->
+        <optgroup label="✦ Google Gemini 3.x (Thế hệ mới)">
+          <option value="gemini-3.6-flash" selected>Gemini 3.6 Flash (Khuyên dùng / Nhanh nhất)</option>
+          <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
+          <option value="gemini-3.7-pro">Gemini 3.7 Pro</option>
+          <option value="gemini-3.6-pro">Gemini 3.6 Pro</option>
+          <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+          <option value="gemini-3.5-pro">Gemini 3.5 Pro</option>
+        </optgroup>
+        <optgroup label="✦ Tùy chỉnh nâng cao">
+          <option value="custom">-- Model tùy chỉnh khác --</option>
+        </optgroup>
+      </select>
+
+      <button class="btn-icon" id="btn-settings" title="Cài đặt API Keys & Model">⚙</button>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <div class="workspace">
+    
+    <!-- Left Panel: Tabs -->
+    <div class="panel">
+      <div class="tabs">
+        <div class="tab active" data-tab="ai">✨ Tạo tự động (AI)</div>
+        <div class="tab" data-tab="prompt">📋 Tạo Prompt</div>
+        <div class="tab" data-tab="code">{ } Soạn thảo TikZ</div>
+      </div>
+
+      <!-- Tab 1: AI Generator -->
+      <div class="tab-pane active" id="pane-ai">
+        <div class="scroll-body">
+          <div>
+            <div class="field-label">
+              <span>Mô tả hoặc Ảnh chụp đề bài</span>
+              <span style="font-weight:400;text-transform:none;color:var(--ink-light)">Ctrl + V để dán ảnh • Ctrl + Enter để tạo</span>
+            </div>
+            <textarea class="ai-textarea" id="ai-prompt"
+              placeholder="Nhập đề bài hoặc nhấn Ctrl + V để dán ảnh chụp đề bài / hình vẽ...&#10;(Nếu đã dán ảnh đề bài, bạn có thể để trống ô này hoặc nhập thêm ghi chú nếu cần)"></textarea>
+
+            <!-- Khung xem trước ảnh đính kèm (ẩn khi chưa có ảnh) -->
+            <div class="image-preview-card" id="image-preview-card" style="display:none">
+              <img class="image-preview-thumb" id="image-preview-thumb" src="" alt="Ảnh đề bài" title="Xem ảnh">
+              <div class="image-preview-info">
+                <span class="image-preview-title" id="image-preview-name">anh_de_bai.png</span>
+                <span class="image-preview-sub" id="image-preview-size">0 KB • Đã sẵn sàng gửi cho AI</span>
+              </div>
+              <button type="button" class="btn-remove-image" id="btn-remove-image" title="Xóa ảnh này">✕ Xóa ảnh</button>
+            </div>
+
+            <!-- Thanh công cụ đính kèm ảnh & Tùy chọn -->
+            <div class="attach-bar">
+              <input type="file" id="image-file-input" accept="image/*" style="display:none">
+              <button type="button" class="btn-attach" id="btn-upload-image" title="Chọn file ảnh từ máy tính">
+                📷 Tải ảnh lên
+              </button>
+              <span style="font-size:11.5px;color:var(--ink-light)">
+                💡 Mẹo: Chụp màn hình rồi nhấn <strong>Ctrl + V</strong> để dán ảnh
+              </span>
+              <label style="margin-left:auto;font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;color:var(--ink)" title="Tự động biên dịch ra hình ảnh ngay sau khi AI viết xong mã TikZ">
+                <input type="checkbox" id="chk-auto-render" checked>
+                <span>Tự động biên dịch</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Gợi ý nhanh dạng nút cuộn gọn gàng -->
+          <div>
+            <div class="field-label" style="margin-bottom:4px">
+              <span>Gợi ý nhanh</span>
+              <span style="font-weight:400;text-transform:none;color:var(--ink-light);font-size:11px">Dùng nút ‹ › hoặc lăn chuột để cuộn</span>
+            </div>
+            <div class="chip-scroll-wrapper">
+              <button type="button" class="btn-scroll-nav" onclick="scrollChips(-140)" title="Cuộn sang trái">‹</button>
+              <div class="chip-scroll-container" id="chip-container">
+                <div class="chip" onclick="setAiPrompt('Vẽ bảng biến thiên hàm số bậc 3 y = x^3 - 3x^2 + 2')">📊 Bảng biến thiên bậc 3</div>
+                <div class="chip" onclick="setAiPrompt('Vẽ bảng biến thiên hàm phân thức y = (2x+1)/(x-1)')">📊 Bảng biến thiên phân thức</div>
+                <div class="chip" onclick="setAiPrompt('Vẽ bảng xét dấu của tam thức bậc hai f(x) = x^2 - 4x + 3')">📋 Bảng xét dấu tam thức</div>
+                <div class="chip" onclick="setAiPrompt('Vẽ tam giác ABC vuông tại A, đường cao AH')">📐 Tam giác vuông & đường cao</div>
+                <div class="chip" onclick="setAiPrompt('Vẽ đường tròn ngoại tiếp tam giác nhọn ABC, tâm O')">⭕ Đường tròn ngoại tiếp</div>
+                <div class="chip" onclick="setAiPrompt('Vẽ hình chóp S.ABCD đáy hình bình hành, SA vuông góc đáy')">🔺 Hình chóp S.ABCD</div>
+                <div class="chip" onclick="setAiPrompt('Vẽ đồ thị hàm số y = x^3 - 3x + 1 có các điểm cực trị')">📈 Đồ thị hàm bậc 3</div>
+                <div class="chip" onclick="setAiPrompt('Vẽ vòng tròn lượng giác có các góc đặc biệt pi/6, pi/4, pi/3')">🔄 Vòng tròn lượng giác</div>
+              </div>
+              <button type="button" class="btn-scroll-nav" onclick="scrollChips(140)" title="Cuộn sang phải">›</button>
+            </div>
+          </div>
+
+          <!-- Kết quả: Mã TikZ (Luôn hiển thị rõ ràng, không bị co lại) -->
+          <div class="step-card" id="code-card">
+            <div class="step-card-header">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span class="step-badge" style="background:#10b981">TikZ Code</span>
+                <span style="color:#1e293b;font-weight:600">Mã TikZ được tạo chuẩn xác</span>
+              </div>
+              <span style="font-size:11px;font-weight:500;color:var(--ink-light)" id="ai-code-status">Sẵn sàng</span>
+            </div>
+            <div class="code-preview-box" id="ai-code-preview" style="color:#94a3b8">% Mã TikZ sẽ xuất hiện tại đây sau khi bạn bấm "Tạo hình"...</div>
+            <!-- Cụm nút hành động nhanh sau khi tạo mã -->
+            <div class="ai-code-actions" id="ai-code-actions">
+              <button type="button" class="btn-quick-action btn-quick-copy" id="btn-copy-ai-code" title="Sao chép toàn bộ mã TikZ để dán vào tài liệu">
+                📋 Copy mã TikZ
+              </button>
+              <button type="button" class="btn-quick-action btn-quick-texlive" id="btn-quick-texlive" title="Biên dịch ngay bằng máy chủ TeXLive.net đám mây">
+                ☁️ Biên dịch TeXLive.net
+              </button>
+              <button type="button" class="btn-quick-action btn-quick-local" id="btn-quick-local" title="Biên dịch ngay bằng pdflatex nội bộ (PNG 300/600 DPI nét căng)">
+                🚀 Server Local
+              </button>
+              <button type="button" class="btn-quick-action btn-quick-editor" id="btn-goto-editor" title="Chuyển mã sang Tab Soạn thảo TikZ để chỉnh sửa thêm">
+                ➡️ Chuyển sang Soạn thảo ↗
+              </button>
+            </div>
+          </div>
+
+          <div class="error-box" id="ai-error"></div>
+        </div>
+
+        <div class="action-bar">
+          <button class="btn btn-gold" id="btn-generate">✨ Tạo hình</button>
+          <button class="btn btn-stop" id="btn-stop-generate" style="display:none">⏹ Dừng lại</button>
+          <span style="font-size:12px;color:var(--ink-light)">Streaming SSE + Tự xoay vòng Key</span>
+        </div>
+      </div>
+
+      <!-- Tab 2: Prompt Maker -->
+      <div class="tab-pane" id="pane-prompt">
+        <div class="scroll-body">
+          <div>
+            <div class="field-label"><span>Yêu cầu vẽ của bạn</span></div>
+            <textarea class="ai-textarea" id="prompt-input" style="min-height:90px"
+              placeholder="Nhập mô tả hoặc đề bài toán để sinh ra prompt chi tiết chuẩn hóa..."></textarea>
+          </div>
+
+          <div style="flex:1;display:flex;flex-direction:column;">
+            <div class="field-label">
+              <span>Prompt chi tiết (gửi Claude / ChatGPT)</span>
+              <button class="btn btn-copy" id="btn-copy-prompt" style="padding:2px 8px;font-size:11px;display:none">📋 Copy Prompt</button>
+            </div>
+            <div class="prompt-placeholder" id="prompt-placeholder">
+              <div class="icon">📋</div>
+              <p>Prompt chuẩn hóa TikZ sẽ xuất hiện ở đây.<br>Bạn chỉ cần bấm Copy và dán vào <strong>Claude.ai</strong> hoặc <strong>ChatGPT</strong>.</p>
+            </div>
+            <div class="prompt-result" id="prompt-result"></div>
+          </div>
+
+          <div class="error-box" id="prompt-error"></div>
+        </div>
+
+        <div class="action-bar">
+          <button class="btn btn-teal" id="btn-make-prompt">📋 Tạo Prompt</button>
+          <button class="btn btn-stop" id="btn-stop-prompt" style="display:none">⏹ Dừng lại</button>
+          <a href="https://claude.ai" target="_blank" class="btn btn-ghost" style="font-size:12.5px">Mở Claude.ai ↗</a>
+          <a href="https://chatgpt.com" target="_blank" class="btn btn-ghost" style="font-size:12.5px">Mở ChatGPT ↗</a>
+        </div>
+      </div>
+
+      <!-- Tab 3: Code Editor -->
+      <div class="tab-pane" id="pane-code">
+        <div class="editor-container">
+          <div class="editor-toolbar">
+            <span style="font-weight:600;color:var(--ink-light)">Chèn mẫu:</span>
+            <select class="template-select" id="template-select">
+              <option value="">-- Chọn hình mẫu nhanh --</option>
+              <optgroup label="✦ Toán học & Không gian 3D">
+                <option value="plane_3d">Bài toán Máy bay Oxyz (Vị trí & Vận tốc)</option>
+                <option value="hinhchop_s_abcd">Hình chóp S.ABCD đáy bình hành</option>
+                <option value="langtru_tamgiac">Hình lăng trụ tam giác ABC.A'B'C'</option>
+                <option value="tamgiac_vuong">Tam giác vuông & đường cao (tkz-euclide)</option>
+                <option value="duongtron_ngoaitiep">Đường tròn ngoại tiếp tam giác (tkz-euclide)</option>
+                <option value="duongtron_cattnhau">Hai đường tròn cắt nhau & tiếp tuyến chung (Hình 9 SGK)</option>
+                <option value="vongtron_luonggiac">Vòng tròn lượng giác</option>
+                <option value="venn">Sơ đồ Venn 2 tập hợp</option>
+              </optgroup>
+              <optgroup label="✦ Bảng biến thiên & Đồ thị">
+                <option value="bbth_bac3">Bảng biến thiên bậc 3 (tkz-tab)</option>
+                <option value="bbth_phanthuc">Bảng biến thiên hàm phân thức (tkz-tab)</option>
+                <option value="bxd_tamthuc">Bảng xét dấu tam thức bậc hai (tkz-tab)</option>
+                <option value="dothi_bac3">Đồ thị hàm số bậc 3 y = x³ - 3x + 1</option>
+                <option value="dothi_phanthuc">Đồ thị hàm phân thức hữu tỉ kèm tiệm cận</option>
+                <option value="pgfplots_sin_cos">Đồ thị sin(x), cos(x) lưới tọa độ (pgfplots)</option>
+              </optgroup>
+              <optgroup label="✦ Sơ đồ, Vật lý & Hóa học">
+                <option value="flowchart">Sơ đồ khối thuật toán (Flowchart)</option>
+                <option value="circuit_rlc">Mạch điện RLC (circuitikz)</option>
+                <option value="chemfig_alcohol">Công thức cấu tạo Ancol Etylic (chemfig)</option>
+              </optgroup>
+            </select>
+            <button class="btn btn-ghost" id="btn-copy-code" style="margin-left:auto;padding:3px 8px;font-size:11.5px">📋 Copy</button>
+            <button class="btn btn-ghost" id="btn-clear-code" style="padding:3px 8px;font-size:11.5px">✕ Xóa</button>
+          </div>
+
+          <!-- Preamble Section (Có thể mở rộng tùy chỉnh) -->
+          <div class="preamble-section" id="preamble-section">
+            <div class="preamble-header" id="preamble-toggle" onclick="togglePreamble()">
+              <span>⚙️ Preamble <small>(\usepackage, \usetikzlibrary, \pgfplotsset...)</small></span>
+              <span class="arrow" id="preamble-arrow">▶</span>
+            </div>
+            <textarea class="preamble-input" id="preamble-input" spellcheck="false">\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz}
+\usepackage{tkz-tab}
+\usepackage{tkz-euclide}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usetikzlibrary{calc,arrows.meta,decorations.pathreplacing,patterns,angles,quotes,intersections,positioning,3d,shapes}</textarea>
+          </div>
+
+          <textarea class="code-editor" id="tikz-input"
+            placeholder="\begin{tikzpicture}&#10;  \draw[thick,->] (-3,0) -- (3,0) node[right] {$x$};&#10;  \draw[thick,->] (0,-3) -- (0,3) node[above] {$y$};&#10;  \draw[domain=-2:2,smooth,variable=\x,blue,thick] plot ({\x},{\x*\x - 1});&#10;\end{tikzpicture}"
+            spellcheck="false"></textarea>
+        </div>
+
+        <div class="error-box" id="code-error"></div>
+
+        <div class="action-bar">
+          <button class="btn btn-primary" id="btn-render">▶ Biên dịch (Render)</button>
+          <span style="font-size:12px;color:var(--ink-light);margin-left:auto"><kbd>Ctrl + Enter</kbd></span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Panel: Preview Area -->
+    <div class="panel panel-right">
+      <div class="preview-header">
+        <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-light)">Kết quả hình vẽ</span>
+
+        <div class="preview-actions">
+          <button class="btn btn-copy" id="btn-clipboard" style="display:none" title="Sao chép ảnh vào Clipboard để dán ngay (Ctrl+V) vào Word">
+            📋 Sao chép ảnh
+          </button>
+          <button class="btn btn-ghost" id="btn-copy-svg" style="display:none" title="Sao chép mã vector SVG">
+            📋 Copy SVG
+          </button>
+          
+          <select id="dpi-select" class="template-select" title="Độ phân giải DPI" style="display:none">
+            <option value="300">300 DPI (Chuẩn nét)</option>
+            <option value="600">600 DPI (Siêu nét / In ấn)</option>
+            <option value="150">150 DPI (Nhẹ)</option>
+          </select>
+
+          <button class="btn btn-ghost" id="btn-download" style="display:none" title="Tải file PNG về máy">⬇ Tải PNG</button>
+          <button class="btn btn-ghost" id="btn-download-pdf" style="display:none" title="Tải file PDF vector về máy">⬇ Tải PDF</button>
+        </div>
+      </div>
+
+      <div class="preview-area bg-grid" id="preview-area">
+        <div class="preview-viewport" id="preview-viewport">
+          <div class="placeholder-box" id="placeholder">
+            <div class="icon">📐</div>
+            <p><strong>Chưa có hình vẽ</strong><br>Bấm "Tạo hình" từ đề bài hoặc "Biên dịch" mã TikZ để xem kết quả.</p>
+          </div>
+          <img id="preview-img" style="display:none;" alt="Hình vẽ TikZ" />
+        </div>
+
+        <!-- Canvas Floating Controls -->
+        <div class="canvas-controls" id="canvas-controls" style="display:none">
+          <button class="control-btn" id="btn-zoom-in" title="Phóng to">+</button>
+          <button class="control-btn" id="btn-zoom-out" title="Thu nhỏ">−</button>
+          <button class="control-btn" id="btn-zoom-reset" title="Kích thước gốc">1:1</button>
+          <button class="control-btn" id="btn-toggle-bg" title="Đổi màu nền (Lưới / Trắng / Tối / Trong suốt)">🎨</button>
+        </div>
+      </div>
+
+      <!-- Bottom Status Bar -->
+      <div class="status-bar" id="status-bar">Sẵn sàng</div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div>Hỗ trợ: <code>tikz</code>, <code>tkz-tab</code>, <code>tkz-euclide</code>, <code>calc</code>, <code>arrows.meta</code>, <code>patterns</code></div>
+    <div>Sẵn sàng sao chép dán trực tiếp vào Microsoft Word</div>
+  </footer>
+
+</div>
+
+<!-- Toast Notification -->
+<div class="toast" id="toast"></div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>⚙ Cấu hình Gemini Multi-Key & Model</h3>
+      <button class="btn-icon" id="btn-close-modal" style="color:var(--ink);background:transparent">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="input-group">
+        <label for="input-gemini-keys">
+          <span>Danh sách Google Gemini API Keys</span>
+          <button class="btn btn-ghost" id="btn-test-all-keys" style="padding:2px 8px;font-size:11px">⚡ Kiểm tra Keys</button>
+        </label>
+        <textarea id="input-gemini-keys" placeholder="Nhập một hoặc nhiều Gemini API Keys (Mỗi key một dòng hoặc phân cách bởi dấu phẩy)&#10;AIzaSyA...&#10;AIzaSyB..."></textarea>
+        <div class="input-help">
+          Hệ thống sẽ <strong>tự động xoay vòng Key</strong>: khi 1 key chạm giới hạn (429/403), code tự động đổi sang key kế tiếp.<br>
+          Lấy key miễn phí: <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio ↗</a>
+        </div>
+        <div class="key-test-results" id="key-test-results"></div>
+      </div>
+
+      <div class="input-group" id="custom-model-group">
+        <label for="input-custom-model">Tên Model Tùy chỉnh (Nâng cao)</label>
+        <input type="text" id="input-custom-model" placeholder="Ví dụ: gemini-3.7-flash, gemini-3.5-pro, gemini-exp-1206..." />
+      </div>
+
+      <div class="input-group">
+        <label for="input-anthropic-key">Anthropic Claude API Key (Tùy chọn)</label>
+        <input type="password" id="input-anthropic-key" placeholder="sk-ant-..." />
+        <div class="input-help">
+          Dành cho các model Claude: <a href="https://console.anthropic.com" target="_blank">Anthropic Console ↗</a>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-settings">Đóng</button>
+      <button class="btn btn-primary" id="btn-save-settings">Lưu cấu hình</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── SẴN SÀNG CÁC TEMPLATES HÌNH MẪU ──────────────────────────────────────────
+const TEMPLATES = {
+  plane_3d: `\\begin{tikzpicture}[
+  x={(-0.65cm,-0.38cm)},
+  y={(1.2cm,0cm)},
+  z={(0cm,1.2cm)},
+  >=Stealth,
+  line cap=round,
+  line join=round
+]
+
+  % 1. MẶT PHẲNG ĐẤT Oxy (Màu nền 3D nhẹ)
+  \\fill[blue!3, draw=blue!20, line width=0.6pt] (-0.8,-0.8,0) -- (4.8,-0.8,0) -- (4.8,6.8,0) -- (-0.8,6.8,0) -- cycle;
+
+  % 2. TỌA ĐỘ CÁC ĐIỂM
+  \\coordinate (O)   at (0,0,0);
+  \\coordinate (Mx)  at (2.5,0,0);
+  \\coordinate (My)  at (0,5.0,0);
+  \\coordinate (Mz)  at (0,0,3.2);
+
+  \\coordinate (Mxy) at (2.5,5.0,0);
+  \\coordinate (Mxz) at (2.5,0,3.2);
+  \\coordinate (Myz) at (0,5.0,3.2);
+  \\coordinate (M)   at (2.5,5.0,3.2);
+
+  % 3. ĐƯỜNG GIÓNG HÌNH HỘP KHÔNG GIAN 3D (Nét đứt xám chuẩn SGK)
+  \\draw[dashed, gray!75, line width=0.65pt] (Mx) -- (Mxy) -- (My);
+  \\draw[dashed, gray!75, line width=0.65pt] (Mxy) -- (M);
+  \\draw[dashed, gray!75, line width=0.65pt] (Mz) -- (Mxz) -- (M);
+  \\draw[dashed, gray!75, line width=0.65pt] (Mz) -- (Myz) -- (M);
+  \\draw[dashed, gray!75, line width=0.65pt] (Mx) -- (Mxz);
+  \\draw[dashed, gray!75, line width=0.65pt] (My) -- (Myz);
+
+  % 4. HỆ TRỤC TỌA ĐỘ Oxyz (Mũi tên sắc nét)
+  \\draw[->, line width=1.1pt, -{Stealth[length=3.2mm, width=2mm]}] (O) -- (4.4,0,0) node[below left=2pt] {\\large $x$};
+  \\draw[->, line width=1.1pt, -{Stealth[length=3.2mm, width=2mm]}] (O) -- (0,6.8,0) node[below=3pt] {\\large $y\\text{ (km)}$};
+  \\draw[->, line width=1.1pt, -{Stealth[length=3.2mm, width=2mm]}] (O) -- (0,0,4.8) node[left=3pt] {\\large $z\\text{ (km)}$};
+
+  % Gốc tọa độ O
+  \\node[below left=3pt] at (O) {\\textbf{\\large $O$}};
+
+  % 5. CÁC TỌA ĐỘ TRÊN TRỤC
+  \\fill[black] (Mx) circle (2pt) node[below left=2pt] {\\textbf{$50$}};
+  \\fill[black] (My) circle (2pt) node[below=3pt] {\\textbf{$120$}};
+  \\fill[black] (Mz) circle (2pt) node[left=3pt] {\\textbf{$4$}};
+  \\fill[gray!70] (Mxy) circle (1.6pt);
+
+  % 6. ĐÀI KIỂM SOÁT KHÔNG LƯU (Trạm KSKL) TẠI GỐC O
+  \\draw[thick, fill=blue!15, draw=blue!60!black] (-0.18,-0.18,0) -- (0.18,-0.18,0) -- (0.18,0.18,0) -- (-0.18,0.18,0) -- cycle;
+  \\draw[line width=1.2pt, blue!85!black] (0,0,0) -- (0,0,0.85);
+  \\fill[blue!85!black] (0,0,0.85) circle (2.2pt);
+  \\draw[cyan!90!blue, line width=0.9pt] (0,0,0.85) ++(45:0.18) arc (45:135:0.18);
+  \\draw[cyan!90!blue, line width=0.9pt] (0,0,0.85) ++(45:0.32) arc (45:135:0.32);
+  \\node[left=6pt, text=blue!85!black, font=\\small\\bfseries] at (0,0,0.65) {Trạm KSKL};
+
+  % 7. VÉCTƠ VẬN TỐC v
+  \\coordinate (V) at ($(M) + (1.2, 1.8, 0.7)$);
+  \\draw[->, line width=1.8pt, red!85!black, -{Stealth[length=3.5mm, width=2.2mm]}] (M) -- (V);
+  \\node[right=3pt, fill=white, inner sep=2.5pt, rounded corners=3pt, draw=red!40, text=red!85!black, font=\\small\\bfseries] at (V)
+    {$\\vec{v} = (300; 400; 3)\\text{ km/h}$};
+
+  % 8. VỊ TRÍ MÁY BAY M
+  \\fill[red!90!black] (M) circle (2.5pt);
+  \\node[below left=2pt, font=\\bfseries\\small, text=black, fill=white, inner sep=1.5pt, rounded corners=2pt] at (M) {$M(50; 120; 4)$};
+
+\\end{tikzpicture}`,
+
+  bbth_bac3: `\\begin{tikzpicture}
+  \\tkzTabInit[lgt=1.5,espcl=2.5]{$x$/1, $y'$/1, $y$/2}{$-\\infty$, $-1$, $1$, $+\\infty$}
+  \\tkzTabLine{,+,0,-,0,+,}
+  \\tkzTabVar{-/ $-\\infty$, +/ $4$, -/ $0$, +/ $+\\infty$}
+\\end{tikzpicture}`,
+
+  bbth_phanthuc: `\\begin{tikzpicture}
+  \\tkzTabInit[lgt=1.5,espcl=3]{$x$/1, $y'$/1, $y$/2.5}{$-\\infty$, $1$, $+\\infty$}
+  \\tkzTabLine{,-,d,-,}
+  \\tkzTabVar{+/ $2$, -D+/ $-\\infty$ / $+\\infty$, -/ $2$}
+\\end{tikzpicture}`,
+
+  bxd_tamthuc: `\\begin{tikzpicture}
+  \\tkzTabInit[lgt=2,espcl=2.5]{$x$/1, $f(x)$/1}{$-\\infty$, $1$, $3$, $+\\infty$}
+  \\tkzTabLine{,+,0,-,0,+,}
+\\end{tikzpicture}`,
+
+  tamgiac_vuong: `\\begin{tikzpicture}[scale=1]
+  \\tkzDefPoints{0/0/A, 4/0/B, 0/3/C}
+  \\tkzDrawPolygon(A,B,C)
+  \\tkzDefPointBy[projection=onto B--C](A) \\tkzGetPoint{H}
+  \\tkzDrawSegment(A,H)
+  \\tkzMarkRightAngles[size=0.3](B,A,C A,H,B)
+  \\tkzDrawPoints[fill=black](A,B,C,H)
+  \\tkzLabelPoints[below left](A)
+  \\tkzLabelPoints[below right](B)
+  \\tkzLabelPoints[above](C)
+  \\tkzLabelPoints[above right](H)
+\\end{tikzpicture}`,
+
+  duongtron_ngoaitiep: `\\begin{tikzpicture}[scale=0.9]
+  \\tkzDefPoints{0/0/A, 4/0/B, 1.5/3.5/C}
+  \\tkzCircumCenter(A,B,C)\\tkzGetPoint{O}
+  \\tkzDrawCircle(O,A)
+  \\tkzDrawPolygon(A,B,C)
+  \\tkzDrawPoints[fill=black](A,B,C,O)
+  \\tkzLabelPoints[below left](A)
+  \\tkzLabelPoints[below right](B)
+  \\tkzLabelPoints[above](C)
+  \\tkzLabelPoints[above left](O)
+\\end{tikzpicture}`,
+
+  duongtron_cattnhau: `\\begin{tikzpicture}[scale=1.15, >=stealth, line cap=round, line join=round]
+  % 1. THIẾT LẬP TÂM VÀ BÁN KÍNH
+  \\def\\R{2.3}
+  \\def\\r{1.6}
+  \\def\\d{3.3}
+  \\coordinate (O) at (0,0);
+  \\coordinate (O') at (\\d,0);
+
+  % 2. VẼ HAI ĐƯỜNG TRÒN
+  \\draw[thick, blue!85!black, name path=circleO] (O) circle (\\R);
+  \\draw[thick, teal!85!black, name path=circleOp] (O') circle (\\r);
+
+  % 3. HAI GIAO ĐIỂM A VÀ B
+  \\path [name intersections={of=circleO and circleOp, by={A,B}}];
+
+  % 4. ĐƯỜNG THẲNG OA CẮT (O) TẠI C VÀ (O') TẠI D
+  % - C là điểm đối xứng của A qua O (AC là đường kính của (O))
+  \\coordinate (C) at ($(O)!-1!(A)$);
+  % - H là hình chiếu của O' lên OA -> H là trung điểm dây cung AD của (O')
+  \\coordinate (H) at ($(O)!(O')!(A)$);
+  \\coordinate (D) at ($(A)!2!(H)$);
+
+  % 5. ĐƯỜNG THẲNG O'A CẮT (O') TẠI F VÀ (O) TẠI E
+  % - F là điểm đối xứng của A qua O' (AF là đường kính của (O'))
+  \\coordinate (F) at ($(O')!-1!(A)$);
+  % - K là hình chiếu của O lên O'A -> K là trung điểm dây cung AE của (O)
+  \\coordinate (K) at ($(O')!(O)!(A)$);
+  \\coordinate (E) at ($(A)!2!(K)$);
+
+  % 6. TIẾP TUYẾN CHUNG NGOÀI PQ
+  \\pgfmathsetmacro{\\angNorm}{-90 - asin((\\R - \\r)/\\d)}
+  \\coordinate (P) at ($(O) + (\\angNorm:\\R)$);
+  \\coordinate (Q) at ($(O') + (\\angNorm:\\r)$);
+
+  % 7. GIAO ĐIỂM M CỦA AB VÀ PQ
+  \\coordinate (M) at (intersection of A--B and P--Q);
+
+  % 8. VẼ CÁC ĐƯỜNG THẲNG MẠCH LẠC, CHÍNH XÁC
+  % Đường thẳng OA: từ C qua O, A đến D
+  \\draw[thick, blue!70!black] (C) -- (D);
+  
+  % Đường thẳng O'A: từ E qua A, O' đến F
+  \\draw[thick, teal!70!black] (E) -- (F);
+
+  % Tiếp tuyến chung ngoài PQ (kéo dài nhẹ 2 đầu)
+  \\draw[thick, red!85!black] ($(P)!-0.5cm!(Q)$) -- ($(Q)!0.8cm!(P)$);
+
+  % Cát tuyến AB kéo dài cắt PQ tại M
+  \\draw[thick, purple!85!black] (A) -- (M);
+
+  % Đoạn nối tâm OO' và các bán kính tiếp xúc
+  \\draw[dashed, gray!80!black] (O) -- (O');
+  \\draw[thin, gray!70!black] (O) -- (P) (O') -- (Q);
+
+  % 9. KÝ HIỆU VUÔNG GÓC CHUẨN XÁC
+  \\draw pic[draw, angle radius=2mm] {right angle = O--P--M};
+  \\draw pic[draw, angle radius=2mm] {right angle = O'--Q--M};
+
+  % 10. CHẤM ĐIỂM ĐỒNG BỘ
+  \\foreach \\pt in {O, O', A, B, C, D, E, F, P, Q, M} {
+    \\fill (\\pt) circle (1.5pt);
+  }
+
+  % 11. GẮN NHÃN CHỮ CÁI THOÁNG ĐÃNG, CÓ NỀN TRẮNG CHE PHỦ (Z-INDEX CAO NHẤT)
+  \\node[above=2pt, fill=white, inner sep=1.2pt] at (A) {$A$};
+  \\node[right=2pt, fill=white, inner sep=1.2pt] at (B) {$B$};
+  \\node[below left=1pt, fill=white, inner sep=1.2pt] at (C) {$C$};
+  \\node[above right=1pt, fill=white, inner sep=1.2pt] at (D) {$D$};
+  \\node[above left=1pt, fill=white, inner sep=1.2pt] at (E) {$E$};
+  \\node[below right=1pt, fill=white, inner sep=1.2pt] at (F) {$F$};
+  \\node[below=2pt, fill=white, inner sep=1.2pt] at (O) {$O$};
+  \\node[below=2pt, fill=white, inner sep=1.2pt] at (O') {$O'$};
+  \\node[below left=1pt, fill=white, inner sep=1.2pt] at (P) {$P$};
+  \\node[below right=1pt, fill=white, inner sep=1.2pt] at (Q) {$Q$};
+  \\node[below=2pt, fill=white, inner sep=1.2pt] at (M) {$M$};
+\\end{tikzpicture}`,
+
+  hinhchop_s_abcd: `\\begin{tikzpicture}[scale=0.9]
+  \\coordinate (A) at (0,0);
+  \\coordinate (B) at (-1.5,-1.5);
+  \\coordinate (C) at (2.5,-1.5);
+  \\coordinate (D) at (4,0);
+  \\coordinate (S) at (0,3.5);
+
+  \\draw[dashed] (A)--(B) (A)--(D) (A)--(S);
+  \\draw[thick] (S)--(B)--(C)--(D)--cycle;
+  \\draw[thick] (S)--(C);
+
+  \\foreach \\p/\\pos in {A/above left, B/below left, C/below right, D/above right, S/above}
+    \\fill (\\p) circle (1.5pt) node[\\pos] {$\\p$};
+\\end{tikzpicture}`,
+
+  langtru_tamgiac: `\\begin{tikzpicture}[scale=0.9]
+  \\coordinate (A) at (0,0);
+  \\coordinate (B) at (1.5,-1.2);
+  \\coordinate (C) at (4,0);
+  \\coordinate (A') at (0,3.5);
+  \\coordinate (B') at (1.5,2.3);
+  \\coordinate (C') at (4,3.5);
+
+  \\draw[dashed] (A)--(C);
+  \\draw[thick] (A)--(B)--(C) (A')--(B')--(C')--cycle;
+  \\draw[thick] (A)--(A') (B)--(B') (C)--(C');
+
+  \\foreach \\p/\\pos in {A/left, B/below, C/right, A'/left, B'/below right, C'/right}
+    \\fill (\\p) circle (1.5pt) node[\\pos] {$\\p$};
+\\end{tikzpicture}`,
+
+  dothi_bac3: `\\begin{tikzpicture}[scale=0.9]
+  \\draw[->,thick] (-2.5,0) -- (3,0) node[right] {$x$};
+  \\draw[->,thick] (0,-2.5) -- (0,3.5) node[above] {$y$};
+  \\node[below left] at (0,0) {$O$};
+  \\draw[domain=-2.1:2.1,smooth,variable=\\x,blue,thick] plot ({\\x},{\\x^3 - 3*\\x + 1});
+  \\draw[dashed] (-1,0) node[below] {$-1$} -- (-1,3) -- (0,3) node[right] {$3$};
+  \\draw[dashed] (1,0) node[above] {$1$} -- (1,-1) -- (0,-1) node[left] {$-1$};
+  \\fill (-1,3) circle (1.5pt) (1,-1) circle (1.5pt);
+\\end{tikzpicture}`,
+
+  dothi_phanthuc: `\\begin{tikzpicture}[scale=0.8]
+  \\draw[->,thick] (-4,0) -- (5,0) node[right] {$x$};
+  \\draw[->,thick] (0,-4) -- (0,5) node[above] {$y$};
+  \\node[below left] at (0,0) {$O$};
+  \\draw[dashed,red,thick] (1,-4) -- (1,5) node[above] {$x=1$};
+  \\draw[dashed,red,thick] (-4,2) -- (5,2) node[right] {$y=2$};
+  \\draw[domain=-3.5:0.6,smooth,variable=\\x,blue,thick] plot ({\\x},{(2*\\x+1)/(\\x-1)});
+  \\draw[domain=1.4:4.5,smooth,variable=\\x,blue,thick] plot ({\\x},{(2*\\x+1)/(\\x-1)});
+\\end{tikzpicture}`,
+
+  vongtron_luonggiac: `\\begin{tikzpicture}[scale=2]
+  \\draw[->,thick] (-1.3,0) -- (1.4,0) node[right] {$\\cos x$};
+  \\draw[->,thick] (0,-1.3) -- (0,1.4) node[above] {$\\sin x$};
+  \\draw (0,0) circle (1cm);
+  \\node[below left] at (0,0) {$O$};
+  \\node[below right] at (1,0) {$1$};
+  \\node[above right] at (0,1) {$1$};
+  \\node[below left] at (-1,0) {$-1$};
+  \\node[below left] at (0,-1) {$-1$};
+  \\draw[dashed,blue] (0,0) -- (30:1cm) node[above right] {$\\frac{\\pi}{6}$};
+  \\draw[dashed,blue] (0,0) -- (45:1cm) node[above right] {$\\frac{\\pi}{4}$};
+  \\draw[dashed,blue] (0,0) -- (60:1cm) node[above right] {$\\frac{\\pi}{3}$};
+\\end{tikzpicture}`,
+
+  venn: `\\begin{tikzpicture}
+  \\def\\firstcircle{(0,0) circle (1.5cm)}
+  \\def\\secondcircle{(0:2cm) circle (1.5cm)}
+  \\draw \\firstcircle node[left] {$A$};
+  \\draw \\secondcircle node[right] {$B$};
+  \\begin{scope}
+    \\clip \\firstcircle;
+    \\fill[teal!30] \\secondcircle;
+  \\end{scope}
+  \\node at (1,0) {$A \\cap B$};
+\\end{tikzpicture}`,
+
+  flowchart: `\\begin{tikzpicture}[node distance=1.6cm, auto, >=Stealth]
+  \\node[draw,rounded rectangle,fill=green!20,inner sep=6pt] (s) {Bắt đầu};
+  \\node[draw,diamond,fill=yellow!20,below of=s,aspect=2.2] (d) {$x > 0$?};
+  \\node[draw,rounded rectangle,fill=blue!20,below of=d,inner sep=6pt] (e) {Kết thúc};
+  \\draw[->,thick] (s) -- (d);
+  \\draw[->,thick] (d) -- node[right]{Có} (e);
+  \\draw[->,thick] (d) -- ++(2.5,0) |- node[near start,right]{Không} (s);
+\\end{tikzpicture}`,
+
+  pgfplots_sin_cos: `\\begin{tikzpicture}
+  \\begin{axis}[
+    title={$f(x) = \\sin(x)$ và $g(x) = \\cos(x)$},
+    xlabel={$x$}, ylabel={$y$},
+    domain=-360:360, samples=100,
+    grid=major, width=9cm, height=6cm,
+    legend pos=north west
+  ]
+    \\addplot[blue,thick] {sin(x)};
+    \\addplot[red,thick,dashed] {cos(x)};
+    \\legend{$\\sin x$, $\\cos x$}
+  \\end{axis}
+\\end{tikzpicture}`,
+
+  circuit_rlc: `\\begin{circuitikz}[scale=0.9, line width=0.8pt]
+  \\draw (0,0)
+    to[battery1, l=$V_s$] (0,3)
+    to[R, l=$R_1$] (3,3)
+    to[C, l=$C_1$] (3,0)
+    -- (0,0);
+  \\draw (3,3)
+    to[short] (5.5,3)
+    to[L, l=$L_1$] (5.5,0)
+    -- (3,0);
+\\end{circuitikz}`,
+
+  chemfig_alcohol: `\\chemfig{H-C(-[2]H)(-[6]H)-C(-[2]H)(-[6]H)-OH}`
+};
+
+// ── PROMPT CONSTANTS ─────────────────────────────────────────────────────────
+const MAKE_PROMPT_SYSTEM = `Bạn là chuyên gia kiến trúc Prompt TikZ hàng đầu cho giáo viên Toán học Việt Nam.
+
+NHIỆM VỤ: Nhận đề bài hoặc mô tả hình vẽ của giáo viên (kể cả ảnh chụp đề bài nếu có), phân tích chuyên sâu các yếu tố hình học và viết lại thành một bản **PROMPT VẼ HÌNH TIKZ ĐẦY ĐỦ, CHUẨN XÁC, CHUYÊN NGHIỆP NHẤT** để gửi cho bất kỳ AI nào (Claude, ChatGPT, Gemini) sinh mã TikZ chuẩn sách giáo khoa ngay lần đầu.
+
+BẢN PROMPT SINH RA PHẢI BAO GỒM ĐẦY ĐỦ CÁC MỤC SAU:
+
+1. 🎯 LOẠI HÌNH & BỐ CỤC:
+   - Xác định chính xác dạng toán: Hình học phẳng (2D) / Hình không gian (3D) / Đồ thị hàm số / Bảng biến thiên (tkz-tab)...
+   - Quy định tỉ lệ khung hình cân đối, thoáng đãng, kích thước trực quan.
+
+2. 📐 QUAN HỆ HÌNH HỌC CHUẨN XÁC & CÁCH DỰNG (RẤT QUAN TRỌNG):
+   - Tính thẳng hàng: Nếu các điểm thẳng hàng (đường kính, cát tuyến qua tâm...), yêu cầu vẽ 1 đoạn thẳng duy nhất liền mạch \\draw (A) -- (B);, tuyệt đối không vẽ chắp vá làm gãy góc.
+   - Tiếp tuyến đường tròn: Yêu cầu vuông góc 100% với bán kính tại tiếp điểm bằng cú pháp calc ($(P)!-1.2cm!90:(O)$) -- ($(P)!1.5cm!90:(O)$) hoặc tkz-euclide. Tiếp tuyến chung ngoài/trong phải tiếp xúc thực sự, không cắt vào trong đường tròn.
+   - Giao điểm: Yêu cầu dùng name path và name intersections={of=... and ..., by={...}} hoặc tkz-euclide. TUYỆT ĐỐI CẤM tự giải phương trình tọa độ ra số thập phân nhiều chữ số.
+   - Kéo dài đoạn thẳng: Dùng calc ($(A)!-0.3!(B)$) -- ($(A)!1.3!(B)$).
+
+3. 🛡️ QUY TẮC CHỐNG ĐÈ NHÃN CHỮ LÊN ĐƯỜNG VẼ (BẮT BUỘC):
+   - MỌI nhãn tên điểm, chữ cái, góc hay số liệu BẮT BUỘC có thuộc tính: fill=white, inner sep=1.2pt để tạo nền trắng che nhẹ nét vẽ bên dưới, chữ luôn sắc nét và không bao giờ bị đường thẳng cắt ngang.
+   - Hướng nhãn thoát ra ngoài: Đặt vị trí nhãn lệch ra ngoài vùng hình vẽ (ví dụ: đỉnh trên dùng above=2pt, đáy trái dùng below left=2pt, giao điểm đường tròn thì quay nhãn ra phía ngoài đường tròn).
+   - Thứ tự lớp vẽ: Toàn bộ lệnh chấm điểm \\fill và ghi nhãn \\node PHẢI ĐẶT Ở CUỐI CÙNG của khối tikzpicture để luôn hiển thị trên cùng (Top Z-index).
+
+4. 🎨 PHÂN CẤP NÉT VẼ & KÝ HIỆU CHUẨN MỰC:
+   - Nét chính (đường tròn, tam giác, hình chính): thick
+   - Nét phụ, đường nối tâm, đường gióng: dashed, gray!80!black hoặc thin
+   - Điểm mấu chốt: Chấm tròn đen đồng bộ \\fill (\\p) circle (1.5pt);
+   - Ký hiệu góc vuông: Dùng \\draw pic[draw, angle radius=2mm] {right angle = ...}; hoặc tkzMarkRightAngle.
+   - Tuyệt đối không vẽ mũi tên (->) hay đường cong to[bend] tùy tiện lên các đoạn thẳng.
+
+5. 📦 ĐỊNH DẠNG ĐẦU RA MÃ TIKZ:
+   Yêu cầu AI: "Hãy viết mã TikZ hoàn chỉnh bắt đầu bằng \\begin{tikzpicture} và kết thúc bằng \\end{tikzpicture}. Đảm bảo biên dịch thành công ngay với pdflatex (hỗ trợ tiếng Việt qua gói vietnam), không dùng fontspec, không kèm markdown giải thích."
+
+QUY TẮC:
+- Viết bằng tiếng Việt sư phạm, khúc chiết, chuẩn xác từng câu chữ.
+- Trả về trực tiếp nội dung bản Prompt chuẩn mực, không thêm lời chào mở đầu hay kết thúc thừa thãi.`;
+
+const DIRECT_TIKZ_SYSTEM = `Bạn là chuyên gia lập trình LaTeX TikZ hàng đầu cho giáo viên Toán học Việt Nam.
+NHIỆM VỤ: Phân tích đề bài toán hoặc ảnh chụp đề bài/hình vẽ toán học để viết TRỰC TIẾP mã TikZ HOÀN CHỈNH, CHUẨN XÁC, ĐẸP MẮT THEO CHUẨN SÁCH GIÁO KHOA.
+
+QUY TẮC BẮT BUỘC:
+1. CHỈ xuất duy nhất khối mã TikZ bắt đầu bằng \\begin{tikzpicture} và kết thúc bằng \\end{tikzpicture}.
+2. BẮT BUỘC phải viết trọn vẹn đến hết \\end{tikzpicture}, TUYỆT ĐỐI không được dừng dở dang giữa chừng.
+3. TUYỆT ĐỐI KHÔNG viết nháp comment (%) và TUYỆT ĐỐI KHÔNG tự giải phương trình tọa độ ra số thập phân 4 chữ số (như 2.0047, 0.9062, 3.3094...). Việc tính toán này làm cạn kiệt token khiến mã bị ngắt giữa chừng. BẮT BUỘC dùng các macro tự động của TikZ: intersections, calc ($(A)!...!(B)$), tkz-euclide hoặc tọa độ ước lượng đơn giản.
+4. THẨM MỸ HÌNH HỌC PHẲNG CHUẨN SÁCH GIÁO KHOA (RẤT QUAN TRỌNG):
+   - ĐOẠN THẲNG HÀNG (Đường kính, Cát tuyến qua tâm): Nếu 3 điểm thẳng hàng (C, O, D), BẮT BUỘC vẽ 1 lệnh liền mạch \\draw (C) -- (D);. TUYỆT ĐỐI KHÔNG vẽ chắp vá (C)--(O) rồi (O)--(D) bằng tọa độ áng chừng khiến đường thẳng bị gãy khúc lệch góc.
+   - TIẾP TUYẾN ĐƯỜNG TRÒN: Phải vuông góc 100% với bán kính tại tiếp điểm. Dùng cú pháp ($(P)!-1.2cm!90:(O)$) -- ($(P)!1.5cm!90:(O)$) hoặc dùng tkz-euclide. Tiếp tuyến chung ngoài/trong phải tiếp xúc thực sự, TUYỆT ĐỐI KHÔNG vẽ đường cắt vào trong đường tròn.
+   - GIAO ĐIỂM TỰ ĐỘNG: Luôn dùng name path và name intersections={of=... and ..., by={...}} hoặc tkz-euclide để bắt giao điểm chuẩn xác 100%.
+   - KÉO DÀI ĐƯỜNG THẲNG: Dùng cú pháp calc ($(A)!-0.3!(B)$) -- ($(A)!1.3!(B)$), không đoán mò tọa độ điểm kéo dài.
+   - CHỐNG ĐÈ NHÃN CHỮ (QUY TẮC BẮT BUỘC):
+     + LỚP HIỂN THỊ (TOP Z-INDEX): Toàn bộ lệnh chấm điểm \\fill (...) circle (1.5pt); và gắn nhãn \\node[...] BẮT BUỘC ĐẶT Ở CUỐI CÙNG của tikzpicture để luôn nằm trên cùng, không bị đường vẽ đè lên.
+     + MẶT NẠ NỀN TRẮNG: MỌI nhãn chữ cái/điểm/số liệu BẮT BUỘC có thuộc tính fill=white, inner sep=1.2pt để tạo nền trắng che nhẹ nét vẽ bên dưới, chữ cái luôn sắc nét rõ ràng (ví dụ: \\node[above=2pt, fill=white, inner sep=1.2pt] at (D) {$D$};).
+     + HƯỚNG NHÃN THOÁT RA NGOÀI: Tự động điều chỉnh hướng nhãn lệch ra ngoài vùng hình vẽ (đỉnh trên: above=2pt, giao điểm đường tròn: quay nhãn ra ngoài đường tròn).
+   - CHẤM ĐIỂM ĐỒNG BỘ: Mọi điểm mấu chốt (A, B, C, O, O',...) phải được chấm tròn đen rõ ràng: \\foreach \\p in {A,B,C,O} \\fill (\\p) circle (1.5pt);.
+   - KÝ HIỆU GÓC VUÔNG: Dùng thư viện angles: \\draw pic[draw, angle radius=2mm] {right angle = A--B--C}; hoặc tkzMarkRightAngle, TUYỆT ĐỐI không vẽ tay nguệch ngoạc.
+   - PHÂN CẤP NÉT VẼ:
+     + Nét chính (đường tròn, tam giác, hình chính): thick
+     + Đường nối tâm, đường gióng phụ: dashed, gray!80!black
+     + Tiếp tuyến hoặc đường quan trọng: thick, red!85!black hoặc blue!80!black
+     + TUYỆT ĐỐI KHÔNG tùy tiện thêm mũi tên (->) hay vẽ đường cong to[bend] lên các đoạn thẳng.
+5. KHÔNG sử dụng fontspec, setmainfont. Bắt buộc tương thích hoàn toàn với pdflatex.
+6. Hỗ trợ tiếng Việt có dấu với gói vietnam.
+7. Thư viện sẵn có: calc, arrows.meta, positioning, 3d, patterns, angles, quotes, intersections, shapes, tkz-tab, tkz-euclide.
+8. Nếu là hình học không gian Oxyz: Dùng hệ trục oblique chuẩn:
+   x={(-0.65cm,-0.38cm)}, y={(1.2cm,0cm)}, z={(0cm,1.2cm)}, >=Stealth
+9. Nếu là bảng biến thiên / xét dấu: Dùng tkz-tab.`;
+
+const TIKZ_SYSTEM = `Bạn là lập trình viên TikZ/LaTeX chuyên nghiệp cho tài liệu toán học Việt Nam.
+NHIỆM VỤ: Nhận drawing description, sinh mã TikZ biên dịch được ngay với pdflatex.
+ĐẦU RA: Chỉ phần mã TikZ BÊN TRONG \\begin{document}...\\end{document}, KHÔNG markdown, KHÔNG preamble.
+QUY TẮC THẨM MỸ & HÌNH HỌC:
+- Điểm thẳng hàng: Vẽ 1 lệnh liền mạch \\draw (A) -- (B);, không vẽ chắp vá.
+- Tiếp tuyến: Vuông góc 100% với bán kính tại tiếp điểm bằng cú pháp calc ($(P)!-1cm!90:(O)$) hoặc tkz-euclide.
+- Giao điểm: Dùng name intersections hoặc tkz-euclide.
+- Nhãn điểm: Dùng fill=white, inner sep=1.2pt để không bị nét vẽ đè chữ.
+- Điểm mấu chốt: Luôn có chấm tròn đen \\fill (X) circle (1.5pt);.
+- Góc vuông: Dùng \\draw pic[draw, angle radius=2mm] {right angle = ...}; hoặc tkzMarkRightAngle.
+- Phân cấp nét vẽ: Nét chính thick, nét phụ/nối tâm dashed, gray!80!black.
+Thư viện sẵn có: tikz, tkz-tab, tkz-euclide, calc, arrows.meta, patterns, angles, quotes, intersections, positioning.`;
+
+const FIX_SYSTEM = `Bạn là chuyên gia debug TikZ/LaTeX.
+NHIỆM VỤ: Nhận mã TikZ lỗi và log lỗi pdflatex, phân tích và sửa lại mã TikZ để biên dịch thành công.
+ĐẦU RA: Chỉ trả về mã TikZ đã sửa, không markdown, không giải thích.`;
+
+// ── DOM ELEMENTS ─────────────────────────────────────────────────────────────
+const API = window.location.origin;
+const MAX_FIX_ATTEMPTS = 2;
+
+const tabs              = document.querySelectorAll('.tab');
+const panes             = document.querySelectorAll('.tab-pane');
+
+const aiPrompt          = document.getElementById('ai-prompt');
+const btnGenerate       = document.getElementById('btn-generate');
+const btnStopGenerate   = document.getElementById('btn-stop-generate');
+const codeCard          = document.getElementById('code-card');
+const aiCodePreview     = document.getElementById('ai-code-preview');
+const btnCopyAiCode     = document.getElementById('btn-copy-ai-code');
+const btnQuickTexlive   = document.getElementById('btn-quick-texlive');
+const btnQuickLocal     = document.getElementById('btn-quick-local');
+const btnGotoEditor     = document.getElementById('btn-goto-editor');
+const aiError           = document.getElementById('ai-error');
+
+const imageFileInput    = document.getElementById('image-file-input');
+const btnUploadImage    = document.getElementById('btn-upload-image');
+const imagePreviewCard  = document.getElementById('image-preview-card');
+const imagePreviewThumb = document.getElementById('image-preview-thumb');
+const imagePreviewName  = document.getElementById('image-preview-name');
+const imagePreviewSize  = document.getElementById('image-preview-size');
+const btnRemoveImage    = document.getElementById('btn-remove-image');
+const chkAutoRender     = document.getElementById('chk-auto-render');
+
+let attachedImage = null; // { mimeType, base64, dataUrl, name, size }
+
+const promptInput     = document.getElementById('prompt-input');
+const btnMakePrompt   = document.getElementById('btn-make-prompt');
+const btnStopPrompt   = document.getElementById('btn-stop-prompt');
+const promptResult    = document.getElementById('prompt-result');
+const promptPH        = document.getElementById('prompt-placeholder');
+const btnCopyPrompt   = document.getElementById('btn-copy-prompt');
+const promptError     = document.getElementById('prompt-error');
+
+const tikzInput       = document.getElementById('tikz-input');
+const btnRender       = document.getElementById('btn-render');
+const btnClearCode    = document.getElementById('btn-clear-code');
+const btnCopyCode     = document.getElementById('btn-copy-code');
+const codeError       = document.getElementById('code-error');
+const templateSelect  = document.getElementById('template-select');
+
+const previewImg      = document.getElementById('preview-img');
+const previewViewport = document.getElementById('preview-viewport');
+const placeholder     = document.getElementById('placeholder');
+const btnClipboard    = document.getElementById('btn-clipboard');
+const btnCopySvg      = document.getElementById('btn-copy-svg');
+const btnDownload     = document.getElementById('btn-download');
+const btnDownloadPdf  = document.getElementById('btn-download-pdf');
+const dpiSelect       = document.getElementById('dpi-select');
+const statusBar       = document.getElementById('status-bar');
+const previewArea     = document.getElementById('preview-area');
+const canvasControls  = document.getElementById('canvas-controls');
+
+const preambleSection = document.getElementById('preamble-section');
+const preambleHeader  = document.getElementById('preamble-toggle');
+const preambleInput   = document.getElementById('preamble-input');
+const preambleArrow   = document.getElementById('preamble-arrow');
+
+const btnEngLocal     = document.getElementById('btn-eng-local');
+const btnEngTikzjax   = document.getElementById('btn-eng-tikzjax');
+const btnEngTexlive   = document.getElementById('btn-eng-texlive');
+
+const btnZoomIn       = document.getElementById('btn-zoom-in');
+const btnZoomOut      = document.getElementById('btn-zoom-out');
+const btnZoomReset    = document.getElementById('btn-zoom-reset');
+const btnToggleBg     = document.getElementById('btn-toggle-bg');
+
+const serverStatus    = document.getElementById('server-status');
+const statusDot       = document.getElementById('status-dot');
+const statusText      = document.getElementById('status-text');
+const keyCountText    = document.getElementById('key-count-text');
+const keyBadgeBtn     = document.getElementById('key-badge-btn');
+const modelSelect     = document.getElementById('model-select');
+const toast           = document.getElementById('toast');
+
+// Modal
+const btnSettings     = document.getElementById('btn-settings');
+const settingsModal   = document.getElementById('settings-modal');
+const btnCloseModal   = document.getElementById('btn-close-modal');
+const btnCancelSettings = document.getElementById('btn-cancel-settings');
+const btnSaveSettings = document.getElementById('btn-save-settings');
+const inputGeminiKeys = document.getElementById('input-gemini-keys');
+const inputCustomModel = document.getElementById('input-custom-model');
+const inputAnthropicKey = document.getElementById('input-anthropic-key');
+const btnTestAllKeys  = document.getElementById('btn-test-all-keys');
+const keyTestResults  = document.getElementById('key-test-results');
+
+let currentEngine = localStorage.getItem('TIKZ_ENGINE') || 'local'; // 'local' | 'tikzjax' | 'texlive'
+let preambleOpen = false;
+let currentSvgNode = null;
+let serverToolsOk = false;
+
+let currentBlob = null;
+let currentBlobUrl = null;
+let currentTikzCode = '';
+let isBusy = false;
+let zoomLevel = 1.0;
+let activeAbortController = null;
+
+const bgClasses = ['bg-grid', 'bg-white', 'bg-dark', 'bg-trans'];
+let currentBgIndex = 0;
+
+// ── TOAST HELPER ─────────────────────────────────────────────────────────────
+function showToast(msg, duration = 3000) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), duration);
+}
+
+// ── GEMINI MULTI-KEY POOL & ROTATION ─────────────────────────────────────────
+class GeminiKeyPool {
+  static getKeys() {
+    const raw = localStorage.getItem('TIKZ_GEMINI_KEYS') || localStorage.getItem('TIKZ_GEMINI_KEY') || '';
+    if (!raw.trim()) return [];
+    return raw
+      .split(/[\n,;]+/)
+      .map(k => k.trim())
+      .filter(k => k.length > 5);
+  }
+
+  static saveKeys(keys) {
+    if (Array.isArray(keys)) {
+      localStorage.setItem('TIKZ_GEMINI_KEYS', keys.join('\n'));
+    } else {
+      localStorage.setItem('TIKZ_GEMINI_KEYS', keys.trim());
+    }
+    GeminiKeyPool.updateUI();
+  }
+
+  static getActiveIndex() {
+    return parseInt(localStorage.getItem('TIKZ_KEY_INDEX') || '0', 10);
+  }
+
+  static setActiveIndex(idx) {
+    localStorage.setItem('TIKZ_KEY_INDEX', idx.toString());
+    GeminiKeyPool.updateUI();
+  }
+
+  static updateUI() {
+    const keys = GeminiKeyPool.getKeys();
+    if (keys.length === 0) {
+      keyCountText.textContent = '0 Key (Nhập API)';
+      keyBadgeBtn.style.color = '#fca5a5';
+    } else {
+      const active = (GeminiKeyPool.getActiveIndex() % keys.length) + 1;
+      keyCountText.textContent = `${keys.length} Key (Dùng #${active})`;
+      keyBadgeBtn.style.color = '#93c5fd';
+    }
+  }
+
+  // 1. Kiểm tra API Key siêu tốc (0 token cost)
+  static async testApiKey(apiKey) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+      const response = await fetch(url);
+      return { ok: response.ok, status: response.status };
+    } catch (e) {
+      return { ok: false, status: 'Network Error' };
+    }
+  }
+
+  // 2. Thực thi yêu cầu với cơ chế Tự động xoay vòng Key khi gặp 429/403/400
+  static async executeWithRotation(fn) {
+    const keys = GeminiKeyPool.getKeys();
+    if (keys.length === 0) {
+      throw new Error('Chưa nhập Gemini API Key nào. Vui lòng bấm vào biểu tượng ⚙ để nhập Key.');
+    }
+
+    let startIndex = GeminiKeyPool.getActiveIndex() % keys.length;
+    let attempts = 0;
+    let lastError = null;
+
+    while (attempts < keys.length) {
+      const currentIndex = (startIndex + attempts) % keys.length;
+      const key = keys[currentIndex];
+
+      try {
+        const result = await fn(key);
+        // Nếu thành công, lưu lại key index này
+        GeminiKeyPool.setActiveIndex(currentIndex);
+        return result;
+      } catch (err) {
+        // Nếu người dùng chủ động bấm Hủy
+        if (err.name === 'AbortError' || err.message === 'ABORTED') {
+          throw err;
+        }
+
+        // Nếu lỗi 404 (Model không tồn tại), không xoay key mà ném lỗi lên để fallback model
+        if (err.message && err.message.includes('MODEL_NOT_FOUND')) {
+          throw err;
+        }
+
+        lastError = err;
+        console.warn(`Key #${currentIndex + 1} gặp lỗi:`, err.message);
+        attempts++;
+
+        if (attempts < keys.length) {
+          const nextIndex = (startIndex + attempts) % keys.length;
+          showToast(`⚠️ Key #${currentIndex + 1} gặp lỗi: ${err.message}. Đang thử Key #${nextIndex + 1}...`);
+        } else {
+          throw new Error(`Lỗi Google API (${lastError ? lastError.message : 'Không xác định'}). Vui lòng kiểm tra lại Key hoặc Model.`);
+        }
+      }
+    }
+  }
+}
+
+// ── GET TARGET MODEL NAME ────────────────────────────────────────────────────
+function getTargetModel() {
+  const sel = modelSelect.value;
+  if (sel === 'custom') {
+    const custom = (inputCustomModel.value || localStorage.getItem('TIKZ_CUSTOM_MODEL') || '').trim();
+    return custom || 'gemini-3.6-flash';
+  }
+  return sel || 'gemini-3.6-flash';
+}
+
+// ── SANITIZE HELPER ──────────────────────────────────────────────────────────
+function cleanTikzCode(code) {
+  let c = code.trim();
+  c = c.replace(/^```[a-zA-Z0-9_-]*\s*/, '').replace(/\s*```$/, '').trim();
+  const docMatch = c.match(/\\begin\{document\}([\s\S]*?)\\end\{document\}/);
+  if (docMatch) {
+    c = docMatch[1].trim();
+  }
+
+  // Tự động khôi phục và đóng thẻ nếu mã TikZ bị cắt cụt giữa chừng
+  if (c.includes('\\begin{tikzpicture}') && !c.includes('\\end{tikzpicture}')) {
+    const lines = c.split('\n');
+    // Xóa các dòng dở dang ở cuối (chưa kết thúc bằng ; hoặc })
+    while (lines.length > 0) {
+      const last = lines[lines.length - 1].trim();
+      if (!last || (!last.endsWith(';') && !last.endsWith('}') && !last.startsWith('%'))) {
+        lines.pop();
+      } else {
+        break;
+      }
+    }
+    lines.push('\\end{tikzpicture}');
+    c = lines.join('\n');
+  }
+  return c;
+}
+
+// ── STREAMING GENERATION (SSE PURE FETCH HỖ TRỢ TEXT & VISION) ──────────────
+async function generateStream(promptText, systemInstruction, onChunk, controller, imagePart = null) {
+  let model = getTargetModel();
+
+  const runWithModel = async (targetModel) => {
+    return await GeminiKeyPool.executeWithRotation(async (apiKey) => {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:streamGenerateContent?alt=sse&key=${apiKey}`;
+
+      const userParts = [];
+      if (imagePart) {
+        userParts.push(imagePart);
+      }
+      if (promptText) {
+        userParts.push({ text: promptText });
+      }
+
+      const requestBody = {
+        contents: [{ role: 'user', parts: userParts }],
+        generationConfig: {
+          maxOutputTokens: 8192,
+          temperature: 0.1,
+          thinkingConfig: { thinkingBudget: 0 }
+        }
+      };
+      if (systemInstruction) {
+        requestBody.system_instruction = { parts: [{ text: systemInstruction }] };
+      }
+
+      let response = await fetch(url, {
+        method: 'POST',
+        signal: controller ? controller.signal : undefined,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+
+      // Nếu model không hỗ trợ thinkingConfig (HTTP 400), tự động gửi lại mà không có thinkingConfig
+      if (!response.ok && response.status === 400) {
+        delete requestBody.generationConfig.thinkingConfig;
+        response = await fetch(url, {
+          method: 'POST',
+          signal: controller ? controller.signal : undefined,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
+      }
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        let errMsg = `HTTP ${response.status}`;
+        try {
+          const errJson = JSON.parse(errText);
+          if (errJson.error && errJson.error.message) {
+            errMsg = `${errJson.error.message} (Mã: ${response.status})`;
+          }
+        } catch (_) {
+          if (errText) errMsg += `: ${errText.substring(0, 120)}`;
+        }
+
+        if (response.status === 404) {
+          const err = new Error(`MODEL_NOT_FOUND: ${errMsg}`);
+          err.status = 404;
+          throw err;
+        }
+
+        throw new Error(errMsg);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      let fullText = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // Giữ lại phần dở dang
+
+        for (const line of lines) {
+          if (line.startsWith('data:')) {
+            const payload = line.replace('data:', '').trim();
+            if (payload === '[DONE]') continue;
+
+            try {
+              const json = JSON.parse(payload);
+              if (json.promptFeedback?.blockReason) {
+                throw new Error('Nội dung bị chặn bởi chính sách Google AI: ' + json.promptFeedback.blockReason);
+              }
+              const parts = json.candidates?.[0]?.content?.parts || [];
+              for (const p of parts) {
+                if (p.text) {
+                  fullText += p.text;
+                  onChunk(p.text, fullText);
+                }
+              }
+            } catch (e) {
+              if (e.message && e.message.includes('chặn')) throw e;
+            }
+          }
+        }
+      }
+
+      // Xử lý nốt phần buffer còn lại ở cuối nếu có
+      if (buffer && buffer.trim()) {
+        const trimmed = buffer.trim();
+        if (trimmed.startsWith('data:')) {
+          const payload = trimmed.replace('data:', '').trim();
+          if (payload && payload !== '[DONE]') {
+            try {
+              const json = JSON.parse(payload);
+              const parts = json.candidates?.[0]?.content?.parts || [];
+              for (const p of parts) {
+                if (p.text) {
+                  fullText += p.text;
+                  onChunk(p.text, fullText);
+                }
+              }
+            } catch (e) {}
+          }
+        }
+      }
+
+      if (!fullText || !fullText.trim()) {
+        throw new Error('Google AI không phản hồi mã TikZ. Vui lòng kiểm tra lại Key hoặc thử đổi sang Model khác (ví dụ: Gemini 3.7 Flash).');
+      }
+
+      return fullText;
+    });
+  };
+
+  try {
+    return await runWithModel(model);
+  } catch (err) {
+    // Nếu model bị 404 (Không tồn tại trên Google API), tự động chuyển về gemini-3.6-flash
+    if (err.message && err.message.includes('MODEL_NOT_FOUND') && model !== 'gemini-3.6-flash') {
+      showToast(`⚠️ Model '${model}' không khả dụng. Đang tự động chuyển sang 'gemini-3.6-flash'...`, 4000);
+      modelSelect.value = 'gemini-3.6-flash';
+      return await runWithModel('gemini-3.6-flash');
+    }
+    throw err;
+  }
+}
+
+// ── STATUS BAR ───────────────────────────────────────────────────────────────
+function setStatus(state, msg, badge) {
+  statusBar.className = 'status-bar ' + state;
+  const icon = state === 'ok' ? '✓' : state === 'err' ? '✕' : '●';
+  const b = badge ? `<span style="margin-left:auto;background:var(--accent-lit);color:#fff;padding:1px 8px;border-radius:10px;font-size:11px">${badge}</span>` : '';
+  if (state === 'loading') {
+    statusBar.innerHTML = `<div class="spinner"></div><span>${msg}</span>${b}`;
+  } else {
+    statusBar.innerHTML = `<span>${icon}</span><span>${msg}</span>${b}`;
+  }
+}
+
+function showErr(box, msg) { box.style.display = 'block'; box.textContent = msg; }
+function hideErr(box)      { box.style.display = 'none'; box.textContent = ''; }
+
+// ── HEALTH CHECK ─────────────────────────────────────────────────────────────
+async function checkServerHealth() {
+  try {
+    const res = await fetch(`${API}/health`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.status === 'ok') {
+        serverToolsOk = true;
+        statusDot.className = 'status-dot active';
+        statusText.textContent = 'pdflatex: Sẵn sàng';
+        if (!localStorage.getItem('TIKZ_ENGINE')) {
+          switchEngine('local');
+        }
+      } else {
+        serverToolsOk = false;
+        statusDot.className = 'status-dot';
+        statusText.textContent = 'Thiếu công cụ LaTeX';
+      }
+    } else {
+      serverToolsOk = false;
+      statusText.textContent = 'Server offline';
+    }
+  } catch {
+    serverToolsOk = false;
+    statusText.textContent = 'Chưa kết nối server';
+  }
+}
+
+// ── TABS SWITCHING ───────────────────────────────────────────────────────────
+tabs.forEach(tab => tab.addEventListener('click', () => {
+  tabs.forEach(t => t.classList.remove('active'));
+  panes.forEach(p => p.classList.remove('active'));
+  tab.classList.add('active');
+  document.getElementById('pane-' + tab.dataset.tab).classList.add('active');
+}));
+
+// Quick Chips
+document.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    aiPrompt.value = chip.dataset.p;
+    aiPrompt.focus();
+  });
+});
+
+// ── ENGINE SWITCHING & PREAMBLE ──────────────────────────────────────────────
+function switchEngine(eng) {
+  currentEngine = eng;
+  localStorage.setItem('TIKZ_ENGINE', eng);
+
+  if (btnEngLocal) btnEngLocal.classList.toggle('active', eng === 'local');
+  if (btnEngTikzjax) btnEngTikzjax.classList.toggle('active', eng === 'tikzjax');
+  if (btnEngTexlive) btnEngTexlive.classList.toggle('active', eng === 'texlive');
+
+  if (eng === 'tikzjax') {
+    showToast('⚡ Đã chuyển sang Engine TikZJax (Render SVG trực tiếp bằng WebAssembly)');
+  } else if (eng === 'texlive') {
+    showToast('☁️ Đã chuyển sang Engine TeXLive.net (Đám mây đầy đủ mọi package)');
+    if (!preambleOpen) togglePreamble();
+  } else {
+    showToast('🚀 Đã chuyển sang Engine Server Local (pdflatex nội bộ)');
+  }
+}
+
+function togglePreamble() {
+  preambleOpen = !preambleOpen;
+  if (preambleInput) preambleInput.classList.toggle('open', preambleOpen);
+  if (preambleArrow) preambleArrow.style.transform = preambleOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+}
+
+function extractLatexError(log) {
+  const lines = log.split('\n');
+  const errorLines = [];
+  let capturing = false;
+  for (const line of lines) {
+    if (line.startsWith('!') || line.includes('Error') || line.includes('error')) {
+      capturing = true;
+    }
+    if (capturing) {
+      errorLines.push(line);
+      if (errorLines.length > 12) break;
+    }
+  }
+  return errorLines.length > 0
+    ? errorLines.join('\n')
+    : log.slice(0, 600) + (log.length > 600 ? '\n...' : '');
+}
+
+// Templates Dropdown in Code Tab
+templateSelect.addEventListener('change', (e) => {
+  const key = e.target.value;
+  if (key && TEMPLATES[key]) {
+    tikzInput.value = TEMPLATES[key];
+    currentTikzCode = TEMPLATES[key];
+    hideErr(codeError);
+
+    // Tự động thêm package tương ứng nếu là mạch điện, hóa học hay pgfplots
+    if (key === 'circuit_rlc') {
+      if (preambleInput && !preambleInput.value.includes('circuitikz')) {
+        preambleInput.value += '\n\\usepackage[american]{circuitikz}';
+      }
+      if (!preambleOpen) togglePreamble();
+    } else if (key === 'chemfig_alcohol') {
+      if (preambleInput && !preambleInput.value.includes('chemfig')) {
+        preambleInput.value += '\n\\usepackage{chemfig}';
+      }
+      if (!preambleOpen) togglePreamble();
+    } else if (key === 'pgfplots_sin_cos') {
+      if (preambleInput && !preambleInput.value.includes('pgfplots')) {
+        preambleInput.value += '\n\\usepackage{pgfplots}\n\\pgfplotsset{compat=1.18}';
+      }
+      if (!preambleOpen) togglePreamble();
+    }
+
+    tikzInput.focus();
+  }
+});
+
+// ── ZOOM & CANVAS CONTROLS ───────────────────────────────────────────────────
+function updateZoom() {
+  previewImg.style.transform = `scale(${zoomLevel})`;
+  const svgContainer = document.getElementById('preview-svg-container');
+  if (svgContainer) svgContainer.style.transform = `scale(${zoomLevel})`;
+}
+
+btnZoomIn.addEventListener('click', () => {
+  zoomLevel = Math.min(zoomLevel + 0.25, 3.5);
+  updateZoom();
+});
+
+btnZoomOut.addEventListener('click', () => {
+  zoomLevel = Math.max(zoomLevel - 0.25, 0.3);
+  updateZoom();
+});
+
+btnZoomReset.addEventListener('click', () => {
+  zoomLevel = 1.0;
+  updateZoom();
+});
+
+btnToggleBg.addEventListener('click', () => {
+  previewArea.classList.remove(bgClasses[currentBgIndex]);
+  currentBgIndex = (currentBgIndex + 1) % bgClasses.length;
+  previewArea.classList.add(bgClasses[currentBgIndex]);
+});
+
+// ── PREVIEW DISPLAY HELPERS ──────────────────────────────────────────────────
+function displaySvg(svgNode) {
+  placeholder.style.display = 'none';
+  previewImg.style.display = 'none';
+  const iframeContainer = document.getElementById('preview-pdf-iframe');
+  if (iframeContainer) iframeContainer.style.display = 'none';
+
+  let svgContainer = document.getElementById('preview-svg-container');
+  if (!svgContainer) {
+    svgContainer = document.createElement('div');
+    svgContainer.id = 'preview-svg-container';
+    previewViewport.appendChild(svgContainer);
+  }
+  svgContainer.style.display = 'flex';
+  svgContainer.style.alignItems = 'center';
+  svgContainer.style.justifyContent = 'center';
+  svgContainer.style.maxWidth = '95%';
+  svgContainer.style.maxHeight = '95%';
+  svgContainer.innerHTML = '';
+
+  const clone = svgNode.cloneNode(true);
+  clone.removeAttribute('style');
+  clone.style.maxWidth = '100%';
+  clone.style.height = 'auto';
+  clone.style.filter = 'drop-shadow(0 10px 30px rgba(0,0,0,0.12))';
+  svgContainer.appendChild(clone);
+
+  currentSvgNode = clone;
+  currentBlob = null;
+
+  btnClipboard.style.display = 'inline-flex';
+  btnCopySvg.style.display = 'inline-flex';
+  btnDownload.style.display = 'inline-flex';
+  btnDownloadPdf.style.display = 'none';
+  dpiSelect.style.display = 'none';
+  canvasControls.style.display = 'flex';
+  zoomLevel = 1.0;
+  updateZoom();
+}
+
+function displayImage(blob) {
+  const svgContainer = document.getElementById('preview-svg-container');
+  if (svgContainer) svgContainer.style.display = 'none';
+  const iframeContainer = document.getElementById('preview-pdf-iframe');
+  if (iframeContainer) iframeContainer.style.display = 'none';
+
+  currentBlob = blob;
+  currentSvgNode = null;
+  if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
+  currentBlobUrl = URL.createObjectURL(currentBlob);
+
+  previewImg.onload = () => {
+    placeholder.style.display = 'none';
+    previewImg.style.display = 'block';
+    btnClipboard.style.display = 'inline-flex';
+    btnCopySvg.style.display = 'none';
+    btnDownload.style.display = 'inline-flex';
+    btnDownloadPdf.style.display = 'inline-flex';
+    dpiSelect.style.display = 'inline-block';
+    canvasControls.style.display = 'flex';
+    zoomLevel = 1.0;
+    updateZoom();
+  };
+  previewImg.src = currentBlobUrl;
+}
+
+function displayPdf(blob) {
+  placeholder.style.display = 'none';
+  previewImg.style.display = 'none';
+  const svgContainer = document.getElementById('preview-svg-container');
+  if (svgContainer) svgContainer.style.display = 'none';
+
+  let iframeContainer = document.getElementById('preview-pdf-iframe');
+  if (!iframeContainer) {
+    iframeContainer = document.createElement('iframe');
+    iframeContainer.id = 'preview-pdf-iframe';
+    iframeContainer.style.cssText = 'width:95%;height:95%;border:none;border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,0.12);background:#fff;';
+    previewViewport.appendChild(iframeContainer);
+  }
+  iframeContainer.style.display = 'block';
+
+  if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
+  currentBlob = blob;
+  currentSvgNode = null;
+  currentBlobUrl = URL.createObjectURL(blob);
+  iframeContainer.src = `${currentBlobUrl}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`;
+
+  btnClipboard.style.display = 'none';
+  btnCopySvg.style.display = 'none';
+  btnDownload.style.display = 'none';
+  btnDownloadPdf.style.display = 'inline-flex';
+  dpiSelect.style.display = 'none';
+  canvasControls.style.display = 'flex';
+}
+
+// ── ENGINE 1: LOCAL BACKEND (pdflatex + poppler) ──────────────────────────────
+async function apiRender(tikz, dpi = 300) {
+  const res = await fetch(`${API}/render`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tikz: cleanTikzCode(tikz), dpi: parseInt(dpi, 10) }),
+  });
+  if (res.ok) {
+    const blob = await res.blob();
+    return { ok: true, blob };
+  }
+  const data = await res.json().catch(() => ({}));
+  return { ok: false, error: data.detail || `Lỗi biên dịch HTTP ${res.status}` };
+}
+
+// ── ENGINE 2: TIKZJAX (Client-side WebAssembly) ───────────────────────────────
+async function renderTikzJax(code) {
+  const raw = cleanTikzCode(code);
+  if (!raw) throw new Error('Không có mã TikZ để render.');
+
+  // Kiểm tra tính tương thích của TikZJax
+  const hasVietnamese = /[àáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ]/i.test(raw);
+  const hasExtraPackages = raw.includes('tkzTab') || raw.includes('tkzDefPoint') || raw.includes('chemfig') || raw.includes('circuitikz') || raw.includes('\\usepackage');
+
+  if (hasVietnamese || hasExtraPackages) {
+    let reason = '';
+    if (hasVietnamese) reason += '• Chứa chữ tiếng Việt có dấu.\n';
+    if (hasExtraPackages) reason += '• Sử dụng gói mở rộng (tkz-tab, tkz-euclide, circuitikz, chemfig, 3D...).\n';
+    
+    throw new Error(`TikZJax (WebAssembly) chỉ hỗ trợ mã TikZ cơ bản, không hỗ trợ:\n${reason}\n👉 Máy tính của bạn đã có sẵn "🚀 Server Local" (pdflatex). Hãy chọn "🚀 Server Local" hoặc "☁️ TeXLive.net" ở trên để vẽ đẹp nhất!`);
+  }
+
+  const old = document.getElementById('tikz-sandbox');
+  if (old) old.remove();
+
+  const container = document.createElement('div');
+  container.id = 'tikz-sandbox';
+  container.style.cssText = 'position:absolute;left:-9999px;top:-9999px;visibility:hidden;';
+  document.body.appendChild(container);
+
+  const script = document.createElement('script');
+  script.type = 'text/tikz';
+  script.textContent = raw;
+  container.appendChild(script);
+
+  await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('Timeout TikZJax (10s) — Vui lòng thử dùng "🚀 Server Local" hoặc "☁️ TeXLive.net"')), 10000);
+    const observer = new MutationObserver(() => {
+      const svg = container.querySelector('svg');
+      if (svg) { clearTimeout(timeout); observer.disconnect(); resolve(); }
+    });
+    observer.observe(container, { childList: true, subtree: true });
+    container.addEventListener('tikzjax-error', (e) => {
+      clearTimeout(timeout);
+      reject(new Error(e.detail || 'Lỗi biên dịch TikZJax'));
+    }, { once: true });
+  });
+
+  const svg = container.querySelector('svg');
+  if (!svg) throw new Error('Không tìm thấy SVG output từ TikZJax');
+  return svg;
+}
+
+// ── ENGINE 3: TEXLIVE.NET (Cloud Server) ──────────────────────────────────────
+async function renderTeXLive(code) {
+  const body = cleanTikzCode(code);
+  if (!body) throw new Error('Không có mã TikZ để render.');
+
+  const preamble = (preambleInput?.value || '').trim() || `\\usepackage[utf8]{vietnam}
+\\usepackage{amsmath,amssymb}
+\\usepackage{tikz}
+\\usepackage{tkz-tab}
+\\usepackage{tkz-euclide}
+\\usepackage{pgfplots}
+\\pgfplotsset{compat=1.18}
+\\usetikzlibrary{calc,arrows.meta,3d,positioning,patterns,angles,quotes,intersections,shapes}`;
+
+  const doc = `\\documentclass[border=6pt]{standalone}\n${preamble}\n\\begin{document}\n${body}\n\\end{document}`;
+
+  // 1. Thử gọi qua backend proxy để tránh lỗi CORS trên trình duyệt
+  try {
+    const proxyResp = await fetch(`${API}/texlive-proxy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ document: doc }),
+    });
+
+    if (proxyResp.ok) {
+      const pdfBlob = await proxyResp.blob();
+      return { ok: true, pdfBlob };
+    } else if (proxyResp.status === 422) {
+      const logText = await proxyResp.text();
+      const snippet = extractLatexError(logText) || logText.slice(0, 500) || 'Lỗi cú pháp LaTeX trên máy chủ TeXLive.net';
+      return { ok: false, error: snippet };
+    }
+  } catch (e) {
+    // Nếu server local không phản hồi proxy, fallback sang gọi trực tiếp
+  }
+
+  // 2. Fallback gọi trực tiếp
+  const formData = new FormData();
+  const blob = new Blob([doc], { type: 'text/plain' });
+  formData.append('filecontents[]', blob, 'document.tex');
+  formData.append('filename[]', 'document.tex');
+  formData.append('engine', 'pdflatex');
+  formData.append('return', 'pdf');
+
+  const resp = await fetch('https://texlive.net/cgi-bin/latexcgi', {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!resp.ok) {
+    throw new Error(`HTTP ${resp.status} — Máy chủ TeXLive.net không phản hồi`);
+  }
+
+  const contentType = resp.headers.get('content-type') || '';
+  if (contentType.includes('pdf')) {
+    const pdfBlob = await resp.blob();
+    return { ok: true, pdfBlob };
+  } else {
+    const logText = await resp.text();
+    const snippet = extractLatexError(logText) || logText.slice(0, 500) || 'Lỗi cú pháp LaTeX trên máy chủ TeXLive.net';
+    return { ok: false, error: snippet };
+  }
+}
+
+async function fixTikzStreaming(badTikz, errorLog, onChunk, controller) {
+  const userMsg = `Mã TikZ bị lỗi:\n\`\`\`latex\n${badTikz}\n\`\`\`\n\nThông báo lỗi LaTeX:\n\`\`\`\n${errorLog}\n\`\`\`\nHãy sửa lại mã TikZ để biên dịch thành công.`;
+  return await generateStream(userMsg, FIX_SYSTEM, onChunk, controller);
+}
+
+// ── RENDER CORE PIPELINE (Hỗ trợ 3 Engines) ──────────────────────────────────
+async function executeRenderPipeline(tikz, errBox, fromAI = false) {
+  if (isBusy) return;
+  isBusy = true;
+  hideErr(errBox);
+
+  const dpi = dpiSelect.value || 300;
+  let curCode = cleanTikzCode(tikz);
+  let attempt = 0;
+
+  try {
+    // 1. ENGINE TIKZJAX (Trình duyệt)
+    if (currentEngine === 'tikzjax') {
+      setStatus('loading', 'Đang biên dịch bằng TikZJax (trình duyệt)...');
+      try {
+        const svgNode = await renderTikzJax(curCode);
+        currentTikzCode = curCode;
+        displaySvg(svgNode);
+        setStatus('ok', `✓ TikZJax SVG (${new Date().toLocaleTimeString('vi-VN')})`);
+        return;
+      } catch (err) {
+        showErr(errBox, `❌ Lỗi TikZJax: ${err.message}`);
+        setStatus('err', 'Lỗi TikZJax');
+        return;
+      }
+    }
+
+    // 2. ENGINE TEXLIVE.NET (Đám mây)
+    if (currentEngine === 'texlive') {
+      setStatus('loading', 'Đang gửi lên TeXLive.net (Đám mây)...');
+      try {
+        const res = await renderTeXLive(curCode);
+        if (res.ok) {
+          currentTikzCode = curCode;
+          displayPdf(res.pdfBlob);
+          setStatus('ok', `✓ TeXLive.net PDF (${new Date().toLocaleTimeString('vi-VN')})`);
+          return;
+        } else {
+          showErr(errBox, `❌ Lỗi TeXLive.net:\n\n${res.error}`);
+          setStatus('err', 'Lỗi TeXLive.net');
+          return;
+        }
+      } catch (err) {
+        showErr(errBox, `❌ Lỗi kết nối TeXLive.net: ${err.message}`);
+        setStatus('err', 'Lỗi kết nối TeXLive');
+        return;
+      }
+    }
+
+    // 3. ENGINE LOCAL SERVER (pdflatex nội bộ)
+    while (true) {
+      setStatus('loading',
+        attempt === 0 ? 'Đang biên dịch TikZ bằng pdflatex nội bộ...' : `AI đang sửa lỗi cú pháp (lần ${attempt})...`,
+        attempt > 0 ? `Tự sửa ${attempt}/${MAX_FIX_ATTEMPTS}` : null
+      );
+
+      const renderRes = await apiRender(curCode, dpi);
+
+      if (renderRes.ok) {
+        currentTikzCode = curCode;
+        displayImage(renderRes.blob);
+
+        setStatus('ok',
+          attempt === 0 ? 'Biên dịch hoàn tất thành công!' : `Hoàn tất! (AI đã tự sửa lỗi sau ${attempt} lần)`,
+          attempt > 0 ? `✓ Sửa ${attempt} lần` : null
+        );
+
+        if (attempt > 0) {
+          tikzInput.value = curCode;
+          if (fromAI) aiCodePreview.textContent = curCode;
+        }
+        return;
+      }
+
+      // Nếu máy tính chưa cài pdflatex, tự động gợi ý chuyển sang TikZJax
+      if (!serverToolsOk || renderRes.error?.includes('chưa được cài đặt')) {
+        showToast('⚠️ Máy tính chưa cài pdflatex. Đang tự chuyển sang TikZJax...', 4000);
+        switchEngine('tikzjax');
+        const svgNode = await renderTikzJax(curCode);
+        currentTikzCode = curCode;
+        displaySvg(svgNode);
+        setStatus('ok', `✓ TikZJax SVG (${new Date().toLocaleTimeString('vi-VN')})`);
+        return;
+      }
+
+      if (attempt >= MAX_FIX_ATTEMPTS) {
+        setStatus('err', `Không thể biên dịch sau ${MAX_FIX_ATTEMPTS} lần tự sửa`);
+        showErr(errBox, renderRes.error);
+        return;
+      }
+
+      attempt++;
+      setStatus('loading', `AI đang phân tích lỗi & sửa mã (lần ${attempt})...`, `Tự sửa ${attempt}/${MAX_FIX_ATTEMPTS}`);
+      
+      const fixedFull = await fixTikzStreaming(curCode, renderRes.error, (chunk, full) => {
+        if (fromAI) aiCodePreview.textContent = full;
+      }, activeAbortController);
+
+      curCode = cleanTikzCode(fixedFull);
+    }
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      setStatus('idle', 'Đã hủy quá trình.');
+      showToast('Đã dừng lại.');
+    } else {
+      setStatus('err', 'Lỗi xử lý');
+      showErr(errBox, err.message);
+    }
+  } finally {
+    isBusy = false;
+  }
+}
+
+// ── HELPER GỢI Ý NHANH & CUỘN ────────────────────────────────────────────────
+function setAiPrompt(text) {
+  if (aiPrompt) {
+    aiPrompt.value = text;
+    aiPrompt.focus();
+    showToast('✓ Đã nạp gợi ý: ' + text.substring(0, 32) + '...');
+  }
+}
+
+function scrollChips(offset) {
+  const container = document.getElementById('chip-container');
+  if (container) {
+    container.scrollBy({ left: offset, behavior: 'smooth' });
+  }
+}
+
+// ── XỬ LÝ ĐÍNH KÈM ẢNH ĐỀ BÀI (PASTE / UPLOAD / KÉO THẢ) ────────────────────
+function setAttachedImage(file) {
+  if (!file || !file.type.startsWith('image/')) {
+    showToast('Vui lòng chọn hoặc dán file hình ảnh (PNG, JPG, WEBP)!');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const dataUrl = e.target.result;
+    const base64 = dataUrl.split(',')[1];
+    attachedImage = {
+      mimeType: file.type,
+      base64: base64,
+      dataUrl: dataUrl,
+      name: file.name || ('Ảnh chụp màn hình ' + new Date().toLocaleTimeString('vi-VN')),
+      size: (file.size / 1024).toFixed(1) + ' KB'
+    };
+    renderAttachedImageUI();
+    showToast('🖼️ Đã nhận ảnh đề bài! Bạn có thể bấm "Tạo hình" ngay.');
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderAttachedImageUI() {
+  if (attachedImage) {
+    imagePreviewCard.style.display = 'flex';
+    imagePreviewThumb.src = attachedImage.dataUrl;
+    imagePreviewName.textContent = attachedImage.name;
+    imagePreviewSize.textContent = `${attachedImage.size} • Đã sẵn sàng gửi cho AI`;
+  } else {
+    imagePreviewCard.style.display = 'none';
+    imagePreviewThumb.src = '';
+    imagePreviewName.textContent = '';
+    imagePreviewSize.textContent = '';
+  }
+}
+
+if (btnRemoveImage) {
+  btnRemoveImage.addEventListener('click', () => {
+    attachedImage = null;
+    if (imageFileInput) imageFileInput.value = '';
+    renderAttachedImageUI();
+    showToast('Đã xóa ảnh đính kèm.');
+  });
+}
+
+if (btnUploadImage && imageFileInput) {
+  btnUploadImage.addEventListener('click', () => imageFileInput.click());
+  imageFileInput.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (file) setAttachedImage(file);
+  });
+}
+
+if (imagePreviewThumb) {
+  imagePreviewThumb.addEventListener('click', () => {
+    if (attachedImage?.dataUrl) {
+      const w = window.open('');
+      w?.document.write(`<title>${attachedImage.name}</title><img src="${attachedImage.dataUrl}" style="max-width:100%;max-height:100vh;display:block;margin:auto;">`);
+    }
+  });
+}
+
+// Lắng nghe sự kiện Paste (Ctrl + V) từ Clipboard
+window.addEventListener('paste', (e) => {
+  // Chỉ nhận khi tab AI đang hiển thị
+  const activeTab = document.querySelector('.tab.active');
+  if (activeTab && activeTab.dataset.tab !== 'ai') return;
+
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].type.indexOf('image') !== -1) {
+      const file = items[i].getAsFile();
+      if (file) {
+        e.preventDefault();
+        setAttachedImage(file);
+        break;
+      }
+    }
+  }
+});
+
+// Hỗ trợ Kéo thả (Drag & Drop) ảnh vào ô Textarea
+if (aiPrompt) {
+  aiPrompt.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    aiPrompt.style.borderColor = 'var(--accent-lit)';
+    aiPrompt.style.background = '#f0f9ff';
+  });
+  aiPrompt.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    aiPrompt.style.borderColor = '';
+    aiPrompt.style.background = '';
+  });
+  aiPrompt.addEventListener('drop', (e) => {
+    e.preventDefault();
+    aiPrompt.style.borderColor = '';
+    aiPrompt.style.background = '';
+    const file = e.dataTransfer?.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setAttachedImage(file);
+    }
+  });
+}
+
+// ── TAB 1: AI GENERATE WITH STREAMING (VISION & TEXT) ────────────────────────
+btnGenerate.addEventListener('click', async () => {
+  if (isBusy) return;
+  const prompt = aiPrompt.value.trim();
+  if (!prompt && !attachedImage) {
+    aiPrompt.focus();
+    showToast('Vui lòng nhập mô tả hoặc dán ảnh chụp đề bài (Ctrl + V)!');
+    return;
+  }
+
+  isBusy = true;
+  btnGenerate.style.display = 'none';
+  btnStopGenerate.style.display = 'inline-flex';
+  hideErr(aiError);
+  
+  const statusLabel = document.getElementById('ai-code-status');
+  if (statusLabel) statusLabel.textContent = 'Đang viết mã...';
+  
+  aiCodePreview.textContent = '% AI đang phân tích đề bài và sinh mã TikZ...';
+  aiCodePreview.style.color = '#94a3b8';
+
+  if (codeCard) {
+    codeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  activeAbortController = new AbortController();
+
+  try {
+    setStatus('loading', attachedImage ? 'AI đang phân tích ảnh đề bài và sinh mã TikZ...' : 'AI đang phân tích đề bài và sinh mã TikZ...');
+
+    let imagePart = null;
+    if (attachedImage && attachedImage.base64) {
+      imagePart = {
+        inlineData: {
+          mimeType: attachedImage.mimeType || 'image/png',
+          data: attachedImage.base64
+        }
+      };
+    }
+
+    const userPrompt = prompt 
+      ? (attachedImage ? `${prompt}\n(Kèm ảnh chụp đề bài / hình vẽ để tham khảo chi tiết)` : prompt)
+      : 'Hãy quan sát kỹ đề bài toán và hình vẽ trong ảnh đính kèm. Nhận diện các điểm, trục, góc, đường nét, đồ thị hàm số hoặc hình không gian. Sau đó hãy viết mã TikZ hoàn chỉnh vẽ chính xác hình này theo chuẩn mực Sách giáo khoa Toán học.';
+
+    let firstChunkReceived = false;
+    // Sinh trực tiếp mã TikZ (1 bước siêu tốc)
+    const tikzFull = await generateStream(userPrompt, DIRECT_TIKZ_SYSTEM, (chunk, full) => {
+      if (!firstChunkReceived) {
+        firstChunkReceived = true;
+        aiCodePreview.style.color = '#e2e8f0';
+        aiCodePreview.textContent = '';
+      }
+      aiCodePreview.textContent = full;
+      aiCodePreview.scrollTop = aiCodePreview.scrollHeight;
+    }, activeAbortController, imagePart);
+
+    const cleanCode = cleanTikzCode(tikzFull);
+    tikzInput.value = cleanCode;
+    currentTikzCode = cleanCode;
+
+    if (statusLabel) statusLabel.textContent = '✓ Hoàn tất';
+
+    // Kiểm tra xem có tự động biên dịch sang hình ảnh không
+    if (chkAutoRender && chkAutoRender.checked) {
+      await executeRenderPipeline(cleanCode, aiError, true);
+    } else {
+      setStatus('ok', '✓ Đã tạo xong mã TikZ! Bấm nút bên dưới để biên dịch hoặc sao chép.');
+      showToast('✓ Đã tạo xong mã TikZ! Bạn có thể bấm nút Biên dịch ở dưới.');
+    }
+
+  } catch (err) {
+    if (statusLabel) statusLabel.textContent = '✕ Lỗi';
+    if (err.name === 'AbortError') {
+      setStatus('idle', 'Đã dừng tạo hình.');
+      showToast('Đã dừng lại theo yêu cầu.');
+      aiCodePreview.textContent = '% Đã dừng quá trình tạo mã theo yêu cầu.';
+      aiCodePreview.style.color = '#94a3b8';
+    } else {
+      setStatus('err', 'Lỗi sinh mã AI');
+      showErr(aiError, err.message);
+      aiCodePreview.textContent = `% Lỗi: ${err.message}\n% Vui lòng kiểm tra lại API Key hoặc đổi sang Model khác (ví dụ: Gemini 3.7 Flash) rồi bấm "Tạo hình" lại.`;
+      aiCodePreview.style.color = '#f87171';
+    }
+  } finally {
+    isBusy = false;
+    btnGenerate.style.display = 'inline-flex';
+    btnStopGenerate.style.display = 'none';
+    activeAbortController = null;
+  }
+});
+
+btnStopGenerate.addEventListener('click', () => {
+  if (activeAbortController) {
+    activeAbortController.abort();
+  }
+});
+
+// Nút sao chép mã TikZ
+btnCopyAiCode.addEventListener('click', async () => {
+  const raw = aiCodePreview.textContent || tikzInput.value;
+  if (!raw || raw.startsWith('% Mã TikZ sẽ xuất hiện') || raw.startsWith('% AI đang phân tích')) {
+    showToast('⚠️ Chưa có mã TikZ để sao chép! Hãy bấm nút "Tạo hình" trước.', 3000);
+    return;
+  }
+  const code = cleanTikzCode(raw);
+  if (code) {
+    await navigator.clipboard.writeText(code);
+    showToast('✓ Đã copy mã TikZ vào bộ nhớ tạm!');
+  } else {
+    showToast('Chưa có mã TikZ để copy.');
+  }
+});
+
+// Nút biên dịch nhanh bằng TeXLive.net
+if (btnQuickTexlive) {
+  btnQuickTexlive.addEventListener('click', async () => {
+    const raw = aiCodePreview.textContent || tikzInput.value;
+    if (!raw || raw.startsWith('% Mã TikZ sẽ xuất hiện') || raw.startsWith('% AI đang phân tích')) {
+      showToast('⚠️ Bạn chưa tạo mã TikZ! Hãy nhấn nút "✨ Tạo hình" ở dưới trước.', 3500);
+      return;
+    }
+    const code = cleanTikzCode(raw);
+    if (!code || code.length < 10) {
+      showToast('⚠️ Chưa có mã TikZ để biên dịch! Hãy bấm "✨ Tạo hình" trước.', 3500);
+      return;
+    }
+    switchEngine('texlive');
+    await executeRenderPipeline(code, aiError, true);
+  });
+}
+
+// Nút biên dịch nhanh bằng Server Local
+if (btnQuickLocal) {
+  btnQuickLocal.addEventListener('click', async () => {
+    const raw = aiCodePreview.textContent || tikzInput.value;
+    if (!raw || raw.startsWith('% Mã TikZ sẽ xuất hiện') || raw.startsWith('% AI đang phân tích')) {
+      showToast('⚠️ Bạn chưa tạo mã TikZ! Hãy nhấn nút "✨ Tạo hình" ở dưới trước.', 3500);
+      return;
+    }
+    const code = cleanTikzCode(raw);
+    if (!code || code.length < 10) {
+      showToast('⚠️ Chưa có mã TikZ để biên dịch! Hãy bấm "✨ Tạo hình" trước.', 3500);
+      return;
+    }
+    switchEngine('local');
+    await executeRenderPipeline(code, aiError, true);
+  });
+}
+
+// Nút chuyển sang Tab Soạn thảo
+btnGotoEditor.addEventListener('click', () => {
+  tabs.forEach(t => t.classList.remove('active'));
+  panes.forEach(p => p.classList.remove('active'));
+  document.querySelector('[data-tab="code"]').classList.add('active');
+  document.getElementById('pane-code').classList.add('active');
+  tikzInput.focus();
+});
+
+// ── TAB 2: PROMPT GENERATOR WITH STREAMING ───────────────────────────────────
+btnMakePrompt.addEventListener('click', async () => {
+  const desc = promptInput.value.trim();
+  if (!desc) { promptInput.focus(); return; }
+
+  btnMakePrompt.style.display = 'none';
+  btnStopPrompt.style.display = 'inline-flex';
+  hideErr(promptError);
+  promptResult.classList.remove('visible');
+  promptPH.style.display = 'none';
+  btnCopyPrompt.style.display = 'none';
+  promptResult.textContent = '';
+  promptResult.classList.add('visible');
+
+  activeAbortController = new AbortController();
+
+  try {
+    await generateStream(desc, MAKE_PROMPT_SYSTEM, (chunk, full) => {
+      promptResult.textContent = full;
+      promptResult.scrollTop = promptResult.scrollHeight;
+    }, activeAbortController);
+
+    btnCopyPrompt.style.display = 'inline-flex';
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      showToast('Đã dừng tạo prompt.');
+    } else {
+      showErr(promptError, err.message);
+    }
+  } finally {
+    btnMakePrompt.style.display = 'inline-flex';
+    btnStopPrompt.style.display = 'none';
+    activeAbortController = null;
+  }
+});
+
+btnStopPrompt.addEventListener('click', () => {
+  if (activeAbortController) activeAbortController.abort();
+});
+
+btnCopyPrompt.addEventListener('click', async () => {
+  const text = promptResult.textContent;
+  if (!text) return;
+  await navigator.clipboard.writeText(text);
+  showToast('✓ Đã copy prompt! Bạn có thể dán vào Claude.ai hoặc ChatGPT ngay.');
+});
+
+// ── TAB 3: CODE EDITOR & RENDER ──────────────────────────────────────────────
+btnRender.addEventListener('click', () => {
+  const code = tikzInput.value.trim();
+  if (!code) { tikzInput.focus(); return; }
+  executeRenderPipeline(code, codeError, false);
+});
+
+btnClearCode.addEventListener('click', () => {
+  tikzInput.value = '';
+  hideErr(codeError);
+  tikzInput.focus();
+});
+
+btnCopyCode.addEventListener('click', async () => {
+  const code = tikzInput.value.trim();
+  if (code) {
+    await navigator.clipboard.writeText(code);
+    showToast('✓ Đã copy mã TikZ');
+  }
+});
+
+// Phím tắt Ctrl + Enter
+tikzInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    const code = tikzInput.value.trim();
+    if (code) executeRenderPipeline(code, codeError, false);
+  }
+});
+
+aiPrompt.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    btnGenerate.click();
+  }
+});
+
+dpiSelect.addEventListener('change', () => {
+  if (currentTikzCode && currentEngine === 'local') {
+    executeRenderPipeline(currentTikzCode, codeError, false);
+  }
+});
+
+// ── CLIPBOARD & DOWNLOADS ────────────────────────────────────────────────────
+btnClipboard.addEventListener('click', async () => {
+  if (currentBlob) {
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': currentBlob })
+      ]);
+      showToast('📋 Đã sao chép ảnh! Bạn hãy mở Word và nhấn Ctrl+V để dán.');
+    } catch (err) {
+      showToast('Không thể sao chép trực tiếp. Vui lòng dùng nút "Tải PNG".');
+    }
+  } else if (currentSvgNode) {
+    // Rasterize SVG thành PNG độ nét cao (Canvas) rồi copy vào clipboard
+    try {
+      const svgXml = new XMLSerializer().serializeToString(currentSvgNode);
+      const svgBlob = new Blob([svgXml], { type: 'image/svg+xml;charset=utf-8' });
+      const URLObj = window.URL || window.webkitURL || window;
+      const blobUrl = URLObj.createObjectURL(svgBlob);
+
+      const img = new Image();
+      img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        const scale = 3; // 3x scale cho 300 DPI sắc nét
+        canvas.width = (img.naturalWidth || 600) * scale;
+        canvas.height = (img.naturalHeight || 400) * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        URLObj.revokeObjectURL(blobUrl);
+
+        canvas.toBlob(async (pngBlob) => {
+          if (pngBlob) {
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
+            showToast('📋 Đã sao chép ảnh từ SVG (300 DPI)! Bạn hãy mở Word và nhấn Ctrl+V.');
+          }
+        }, 'image/png');
+      };
+      img.src = blobUrl;
+    } catch (e) {
+      showToast('Không thể tạo ảnh từ SVG. Hãy bấm "Copy SVG".');
+    }
+  }
+});
+
+btnCopySvg.addEventListener('click', async () => {
+  if (!currentSvgNode) return;
+  const svgText = currentSvgNode.outerHTML;
+  await navigator.clipboard.writeText(svgText);
+  showToast('✓ Đã copy mã vector SVG vào bộ nhớ tạm!');
+});
+
+btnDownload.addEventListener('click', () => {
+  if (currentBlobUrl) {
+    const a = document.createElement('a');
+    a.href = currentBlobUrl;
+    a.download = `tikz_hinh_ve_${Date.now()}.png`;
+    a.click();
+    showToast('✓ Đã tải ảnh PNG');
+  } else if (currentSvgNode) {
+    const svgXml = new XMLSerializer().serializeToString(currentSvgNode);
+    const blob = new Blob([svgXml], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tikz_hinh_ve_${Date.now()}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('✓ Đã tải file vector SVG');
+  }
+});
+
+btnDownloadPdf.addEventListener('click', async () => {
+  if (!currentTikzCode) return;
+  try {
+    setStatus('loading', 'Đang xuất file PDF vector...');
+    const res = await fetch(`${API}/render-pdf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tikz: cleanTikzCode(currentTikzCode) }),
+    });
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `tikz_vector_${Date.now()}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setStatus('ok', 'Đã tải file PDF thành công');
+      showToast('✓ Đã tải file PDF vector');
+    } else {
+      setStatus('err', 'Không thể tạo file PDF');
+    }
+  } catch (e) {
+    setStatus('err', e.message);
+  }
+});
+
+// ── SETTINGS MODAL & TEST ALL KEYS ───────────────────────────────────────────
+function openSettings() {
+  inputGeminiKeys.value = localStorage.getItem('TIKZ_GEMINI_KEYS') || localStorage.getItem('TIKZ_GEMINI_KEY') || '';
+  inputCustomModel.value = localStorage.getItem('TIKZ_CUSTOM_MODEL') || '';
+  inputAnthropicKey.value = localStorage.getItem('TIKZ_ANTHROPIC_KEY') || '';
+  keyTestResults.innerHTML = '';
+  settingsModal.classList.add('open');
+}
+
+btnSettings.addEventListener('click', openSettings);
+keyBadgeBtn.addEventListener('click', openSettings);
+
+function closeModal() { settingsModal.classList.remove('open'); }
+btnCloseModal.addEventListener('click', closeModal);
+btnCancelSettings.addEventListener('click', closeModal);
+settingsModal.addEventListener('click', (e) => {
+  if (e.target === settingsModal) closeModal();
+});
+
+btnSaveSettings.addEventListener('click', () => {
+  const gKeys = inputGeminiKeys.value.trim();
+  const cModel = inputCustomModel.value.trim();
+  const aKey = inputAnthropicKey.value.trim();
+
+  GeminiKeyPool.saveKeys(gKeys);
+  if (cModel) localStorage.setItem('TIKZ_CUSTOM_MODEL', cModel); else localStorage.removeItem('TIKZ_CUSTOM_MODEL');
+  if (aKey) localStorage.setItem('TIKZ_ANTHROPIC_KEY', aKey); else localStorage.removeItem('TIKZ_ANTHROPIC_KEY');
+
+  closeModal();
+  showToast('✓ Đã lưu cấu hình API Keys!');
+});
+
+// Kiểm tra toàn bộ danh sách Keys
+btnTestAllKeys.addEventListener('click', async () => {
+  const raw = inputGeminiKeys.value.trim();
+  const keys = raw.split(/[\n,;]+/).map(k => k.trim()).filter(k => k.length > 5);
+
+  if (keys.length === 0) {
+    keyTestResults.innerHTML = '<div style="color:var(--err);font-size:12px">Chưa có API Key nào để kiểm tra.</div>';
+    return;
+  }
+
+  keyTestResults.innerHTML = '<div style="color:var(--accent-lit);font-size:12px">Đang kiểm tra siêu tốc từng Key...</div>';
+  const results = [];
+
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i];
+    const masked = k.substring(0, 8) + '...' + k.substring(k.length - 4);
+    const test = await GeminiKeyPool.testApiKey(k);
+    results.push({ index: i + 1, masked, ok: test.ok, status: test.status });
+  }
+
+  keyTestResults.innerHTML = results.map(r => `
+    <div class="key-status-item ${r.ok ? 'valid' : 'invalid'}">
+      <span>Key #${r.index}: ${r.masked}</span>
+      <span>${r.ok ? '✓ Hoạt động tốt' : `✕ Lỗi (${r.status})`}</span>
+    </div>
+  `).join('');
+});
+
+// ── STARTUP ──────────────────────────────────────────────────────────────────
+if (chkAutoRender) {
+  const savedAutoRender = localStorage.getItem('TIKZ_AUTO_RENDER');
+  if (savedAutoRender !== null) {
+    chkAutoRender.checked = savedAutoRender === 'true';
+  }
+  chkAutoRender.addEventListener('change', () => {
+    localStorage.setItem('TIKZ_AUTO_RENDER', chkAutoRender.checked ? 'true' : 'false');
+  });
+}
+
+GeminiKeyPool.updateUI();
+switchEngine(currentEngine);
+checkServerHealth();
+</script>
+</body>
+</html>

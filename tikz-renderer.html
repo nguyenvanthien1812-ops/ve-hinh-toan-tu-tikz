@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TikZ Live Renderer</title>
+
+  <!-- TikZJax for client-side rendering -->
+  <link rel="stylesheet" type="text/css" href="https://tikzjax.com/v1/fonts.css">
+  <script src="https://tikzjax.com/v1/tikzjax.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      background: #1a1d2e;
+      border-bottom: 1px solid #2d3148;
+      flex-shrink: 0;
+    }
+    .logo { font-size: 17px; font-weight: 700; letter-spacing: -0.5px; color: #a78bfa; }
+    .logo span { color: #60a5fa; }
+
+    /* Engine toggle */
+    .engine-toggle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: #0f1117;
+      border: 1px solid #2d3148;
+      border-radius: 8px;
+      padding: 3px;
+      margin-left: auto;
+    }
+    .eng-btn {
+      padding: 4px 12px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      color: #64748b;
+      background: transparent;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .eng-btn.active { background: #7c3aed; color: #fff; }
+    .eng-btn:not(.active):hover { color: #94a3b8; }
+
+    .engine-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-weight: 600;
+    }
+    .badge-local { background: #052e16; color: #4ade80; border: 1px solid #166534; }
+    .badge-server { background: #1e1b4b; color: #a78bfa; border: 1px solid #4c1d95; }
+
+    .main {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Editor pane */
+    .editor-pane {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #2d3148;
+      overflow: hidden;
+    }
+    .pane-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 14px;
+      background: #151722;
+      border-bottom: 1px solid #2d3148;
+      flex-shrink: 0;
+    }
+    .pane-title {
+      display: flex; align-items: center; gap: 6px;
+      font-weight: 600; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #a78bfa; }
+
+    /* Preamble section (TeXLive mode only) */
+    .preamble-section {
+      display: none;
+      flex-direction: column;
+      border-bottom: 1px solid #2d3148;
+      flex-shrink: 0;
+    }
+    .preamble-section.visible { display: flex; }
+    .preamble-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 5px 14px;
+      background: #100f23;
+      cursor: pointer;
+      user-select: none;
+      font-size: 11px;
+      color: #6d6aaa;
+    }
+    .preamble-header:hover { color: #a78bfa; }
+    .preamble-header .arrow { transition: transform 0.2s; font-size: 10px; }
+    .preamble-header.open .arrow { transform: rotate(90deg); }
+    textarea.preamble-input {
+      resize: none; border: none; outline: none;
+      background: #0a0916;
+      color: #8b8cc7;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 11.5px;
+      line-height: 1.6;
+      padding: 8px 14px;
+      height: 0;
+      overflow: hidden;
+      transition: height 0.2s;
+    }
+    textarea.preamble-input.open { height: 90px; overflow: auto; }
+
+    textarea#code-input {
+      flex: 1; resize: none; border: none; outline: none;
+      background: #0f1117;
+      color: #c9d1d9;
+      font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      padding: 14px;
+      tab-size: 2;
+    }
+    textarea#code-input::placeholder { color: #334155; }
+
+    .examples {
+      display: flex; gap: 5px; padding: 7px 14px;
+      background: #151722; border-bottom: 1px solid #2d3148;
+      overflow-x: auto; flex-shrink: 0;
+    }
+    .example-btn {
+      font-size: 11px; padding: 3px 10px;
+      border-radius: 99px; border: 1px solid #2d3148;
+      background: transparent; color: #64748b;
+      cursor: pointer; white-space: nowrap; transition: all 0.15s;
+    }
+    .example-btn:hover { background: #1e2235; color: #a78bfa; border-color: #7c3aed44; }
+    .example-btn.server-only {
+      border-color: #4c1d9555;
+      color: #5b52a3;
+    }
+    .example-btn.server-only:hover { color: #a78bfa; }
+
+    .toolbar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 14px; background: #151722;
+      border-top: 1px solid #2d3148; flex-shrink: 0;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border-radius: 6px; border: none;
+      cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s;
+    }
+    .btn-primary { background: #7c3aed; color: #fff; }
+    .btn-primary:hover { background: #6d28d9; }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-ghost { background: transparent; color: #64748b; border: 1px solid #2d3148; }
+    .btn-ghost:hover { background: #1e2235; color: #94a3b8; }
+    .shortcut { font-size: 11px; color: #475569; margin-left: auto; }
+
+    /* Preview pane */
+    .preview-pane { display: flex; flex-direction: column; overflow: hidden; background: #0d0f1a; }
+    .preview-body {
+      flex: 1; overflow: auto;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+
+    #preview-content {
+      background: #ffffff; border-radius: 8px; padding: 28px;
+      min-width: 200px; min-height: 120px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.05), 0 20px 60px rgba(0,0,0,0.5);
+      max-width: 100%;
+    }
+    #preview-content svg { max-width: 100%; height: auto; }
+    #preview-content iframe {
+      border: none; width: 560px; height: 420px;
+      max-width: 100%;
+    }
+
+    .placeholder { text-align: center; color: #334155; }
+    .placeholder svg { margin-bottom: 12px; opacity: 0.3; }
+    .placeholder p { font-size: 13px; }
+
+    .error-msg {
+      color: #f87171; font-size: 12px; font-family: monospace;
+      background: #1a0a0a; padding: 12px; border-radius: 6px;
+      border: 1px solid #7f1d1d; max-width: 400px;
+      word-break: break-word; white-space: pre-wrap;
+    }
+
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid #2d3148; border-top-color: #a78bfa;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Status bar */
+    .statusbar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 14px; background: #151722;
+      border-top: 1px solid #2d3148; font-size: 11px; color: #475569; flex-shrink: 0;
+    }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
+    .status-dot.loading { background: #f59e0b; animation: pulse 1s infinite; }
+    .status-dot.error   { background: #ef4444; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* Info panel for TeXLive mode */
+    .info-strip {
+      display: none; align-items: center; gap: 8px;
+      padding: 5px 14px; background: #0d0b1e;
+      border-bottom: 1px solid #2d2d5a; font-size: 11px; color: #6d6aaa;
+      flex-shrink: 0;
+    }
+    .info-strip.visible { display: flex; }
+    .info-strip a { color: #7c6fd0; text-decoration: none; }
+    .info-strip a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">TikZ<span>Live</span></div>
+
+  <div class="engine-toggle">
+    <button class="eng-btn active" id="btn-tikzjax" onclick="switchEngine('tikzjax')">
+      ⚡ TikZJax
+    </button>
+    <button class="eng-btn" id="btn-texlive" onclick="switchEngine('texlive')">
+      🖥️ TeXLive.net
+    </button>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- LEFT: Editor -->
+  <div class="editor-pane">
+    <div class="pane-header">
+      <div class="pane-title"><div class="dot"></div> Editor</div>
+      <span id="engine-badge" class="engine-badge badge-local">Local · TikZJax</span>
+    </div>
+
+    <!-- Preamble (TeXLive mode) -->
+    <div class="preamble-section" id="preamble-section">
+      <div class="preamble-header" id="preamble-toggle" onclick="togglePreamble()">
+        <span>▶ Preamble <small>(\\usepackage, \\usetikzlibrary...)</small></span>
+        <span class="arrow">▶</span>
+      </div>
+      <textarea class="preamble-input" id="preamble-input" spellcheck="false">\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usetikzlibrary{arrows.meta,shapes,positioning,calc}</textarea>
+    </div>
+
+    <!-- Examples -->
+    <div class="examples" id="examples-strip"></div>
+
+    <textarea id="code-input" spellcheck="false" placeholder="Nhập TikZ code vào đây..."></textarea>
+
+    <div class="toolbar">
+      <button class="btn btn-primary" id="render-btn" onclick="render()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Render
+      </button>
+      <button class="btn btn-ghost" onclick="clearAll()">Xoá</button>
+      <button class="btn btn-ghost" id="copy-svg-btn" onclick="copySVG()" style="display:none">Copy SVG</button>
+      <span class="shortcut">Ctrl+Enter</span>
+    </div>
+  </div>
+
+  <!-- RIGHT: Preview -->
+  <div class="preview-pane">
+    <div class="pane-header">
+      <div class="pane-title"><div class="dot" style="background:#60a5fa"></div> Preview</div>
+    </div>
+
+    <!-- TeXLive info strip -->
+    <div class="info-strip" id="info-strip">
+      🖥️ Compile bằng <a href="https://texlive.net" target="_blank">texlive.net</a> — hỗ trợ đầy đủ packages · PDF được nhúng trực tiếp
+    </div>
+
+    <div class="preview-body">
+      <div id="preview-content">
+        <div class="placeholder">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+          </svg>
+          <p>Nhấn <strong>Render</strong> để xem kết quả</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="statusbar">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">Sẵn sàng</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────
+// EXAMPLES
+// ─────────────────────────────────────────────────────────
+const EXAMPLES = [
+  {
+    label: "Vòng tròn",
+    engine: "both",
+    code: `\\begin{tikzpicture}
+  \\draw[blue, thick] (0,0) circle (1.5cm);
+  \\fill[blue!20] (0,0) circle (1.5cm);
+  \\node at (0,0) {$O$};
+\\end{tikzpicture}`
+  },
+  {
+    label: "Đồ thị hàm số",
+    engine: "both",
+    code: `\\begin{tikzpicture}
+  \\draw[->] (-0.3,0) -- (3.8,0) node[right] {$x$};
+  \\draw[->] (0,-0.3) -- (0,3) node[above] {$y$};
+  \\draw[blue,thick,domain=0.3:3.5,samples=80]
+    plot (\\x, {1/\\x}) node[right] {$y=\\frac{1}{x}$};
+\\end{tikzpicture}`
+  },
+  {
+    label: "Flowchart",
+    engine: "both",
+    code: `\\begin{tikzpicture}[node distance=1.6cm, auto]
+  \\node[draw,rounded rectangle,fill=green!20] (s) {Bắt đầu};
+  \\node[draw,diamond,fill=yellow!20,below of=s,aspect=2.2] (d) {x > 0?};
+  \\node[draw,rounded rectangle,fill=blue!20,below of=d] (e) {Kết thúc};
+  \\draw[->] (s) -- (d);
+  \\draw[->] (d) -- node{Có} (e);
+  \\draw[->] (d) -- ++(2.5,0) |- node[near start,right]{Không} (s);
+\\end{tikzpicture}`
+  },
+  {
+    label: "pgfplots (server)",
+    engine: "texlive",
+    preamble: `\\usepackage{tikz}
+\\usepackage{pgfplots}
+\\pgfplotsset{compat=1.18}`,
+    code: `\\begin{tikzpicture}
+\\begin{axis}[
+  title={$f(x) = \\sin(x)$},
+  xlabel={$x$}, ylabel={$f(x)$},
+  domain=-360:360, samples=100,
+  grid=major, width=8cm, height=6cm
+]
+  \\addplot[blue,thick] {sin(x)};
+  \\addplot[red,thick,dashed] {cos(x)};
+  \\legend{$\\sin x$, $\\cos x$}
+\\end{axis}
+\\end{tikzpicture}`
+  },
+  {
+    label: "Circuit (server)",
+    engine: "texlive",
+    preamble: `\\usepackage{tikz}
+\\usepackage[american]{circuitikz}`,
+    code: `\\begin{circuitikz}[scale=0.9]
+  \\draw (0,0)
+    to[battery1, l=$V_s$] (0,3)
+    to[R, l=$R_1$] (3,3)
+    to[C, l=$C_1$] (3,0)
+    -- (0,0);
+  \\draw (3,3)
+    to[short] (5,3)
+    to[L, l=$L_1$] (5,0)
+    -- (3,0);
+\\end{circuitikz}`
+  },
+  {
+    label: "Chemistry (server)",
+    engine: "texlive",
+    preamble: `\\usepackage{tikz}
+\\usepackage{chemfig}`,
+    code: `\\chemfig{H-C(-[2]H)(-[6]H)-C(-[2]H)(-[6]H)-OH}`
+  },
+];
+
+// ─────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────
+let currentEngine = 'tikzjax'; // 'tikzjax' | 'texlive'
+let preambleOpen = false;
+
+const codeInput     = document.getElementById('code-input');
+const preambleInput = document.getElementById('preamble-input');
+const preview       = document.getElementById('preview-content');
+const statusDot     = document.getElementById('status-dot');
+const statusText    = document.getElementById('status-text');
+
+// ─────────────────────────────────────────────────────────
+// BUILD EXAMPLE BUTTONS
+// ─────────────────────────────────────────────────────────
+const strip = document.getElementById('examples-strip');
+EXAMPLES.forEach(ex => {
+  const btn = document.createElement('button');
+  btn.className = 'example-btn' + (ex.engine === 'texlive' ? ' server-only' : '');
+  btn.textContent = ex.label;
+  btn.title = ex.engine === 'texlive' ? 'Yêu cầu TeXLive.net engine' : '';
+  btn.addEventListener('click', () => {
+    if (ex.engine === 'texlive' && currentEngine !== 'texlive') {
+      switchEngine('texlive');
+    }
+    codeInput.value = ex.code;
+    if (ex.preamble) {
+      preambleInput.value = ex.preamble;
+      if (!preambleOpen) togglePreamble();
+    }
+    render();
+  });
+  strip.appendChild(btn);
+});
+
+// ─────────────────────────────────────────────────────────
+// ENGINE SWITCH
+// ─────────────────────────────────────────────────────────
+function switchEngine(eng) {
+  currentEngine = eng;
+  document.getElementById('btn-tikzjax').classList.toggle('active', eng === 'tikzjax');
+  document.getElementById('btn-texlive').classList.toggle('active', eng === 'texlive');
+
+  const badge = document.getElementById('engine-badge');
+  const preambleSec = document.getElementById('preamble-section');
+  const infoStrip = document.getElementById('info-strip');
+  const copySvgBtn = document.getElementById('copy-svg-btn');
+
+  if (eng === 'tikzjax') {
+    badge.className = 'engine-badge badge-local';
+    badge.textContent = 'Local · TikZJax';
+    preambleSec.classList.remove('visible');
+    infoStrip.classList.remove('visible');
+    copySvgBtn.style.display = '';
+  } else {
+    badge.className = 'engine-badge badge-server';
+    badge.textContent = 'Server · TeXLive.net';
+    preambleSec.classList.add('visible');
+    infoStrip.classList.add('visible');
+    copySvgBtn.style.display = 'none';
+  }
+  setStatus('', 'Đã chuyển sang ' + (eng === 'tikzjax' ? 'TikZJax (local)' : 'TeXLive.net (server)'));
+}
+
+// ─────────────────────────────────────────────────────────
+// PREAMBLE TOGGLE
+// ─────────────────────────────────────────────────────────
+function togglePreamble() {
+  preambleOpen = !preambleOpen;
+  const toggle = document.getElementById('preamble-toggle');
+  const input  = preambleInput;
+  toggle.classList.toggle('open', preambleOpen);
+  input.classList.toggle('open', preambleOpen);
+}
+
+// ─────────────────────────────────────────────────────────
+// STATUS
+// ─────────────────────────────────────────────────────────
+function setStatus(state, msg) {
+  statusDot.className = 'status-dot' + (state ? ' ' + state : '');
+  statusText.textContent = msg;
+}
+
+// ─────────────────────────────────────────────────────────
+// RENDER DISPATCHER
+// ─────────────────────────────────────────────────────────
+function render() {
+  if (currentEngine === 'tikzjax') renderTikzJax();
+  else renderTeXLive();
+}
+
+// ─────────────────────────────────────────────────────────
+// ENGINE 1: TikZJax (client-side)
+// ─────────────────────────────────────────────────────────
+async function renderTikzJax() {
+  const raw = codeInput.value.trim();
+  if (!raw) { setStatus('', 'Không có code để render'); return; }
+
+  setStatus('loading', 'Đang render (TikZJax)…');
+  preview.innerHTML = '<div class="spinner"></div>';
+
+  try {
+    const old = document.getElementById('tikz-sandbox');
+    if (old) old.remove();
+
+    const container = document.createElement('div');
+    container.id = 'tikz-sandbox';
+    container.style.cssText = 'position:absolute;left:-9999px;top:-9999px;visibility:hidden;';
+    document.body.appendChild(container);
+
+    const script = document.createElement('script');
+    script.type = 'text/tikz';
+    script.textContent = raw;
+    container.appendChild(script);
+
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Timeout (30s) — thử dùng TeXLive.net engine')), 30000);
+      const observer = new MutationObserver(() => {
+        const svg = container.querySelector('svg');
+        if (svg) { clearTimeout(timeout); observer.disconnect(); resolve(); }
+      });
+      observer.observe(container, { childList: true, subtree: true });
+      container.addEventListener('tikzjax-error', (e) => {
+        clearTimeout(timeout);
+        reject(new Error(e.detail || 'TikZ compilation error'));
+      }, { once: true });
+    });
+
+    const svg = container.querySelector('svg');
+    if (!svg) throw new Error('Không tìm thấy SVG output');
+
+    const clone = svg.cloneNode(true);
+    clone.removeAttribute('style');
+    clone.style.maxWidth = '100%';
+    clone.style.height = 'auto';
+
+    preview.innerHTML = '';
+    preview.appendChild(clone);
+    document.getElementById('copy-svg-btn').style.display = '';
+    setStatus('', `✓ TikZJax · ${new Date().toLocaleTimeString('vi-VN')}`);
+
+  } catch (err) {
+    preview.innerHTML = `<div class="error-msg">❌ TikZJax error:\n${err.message}\n\n💡 Thử chuyển sang TeXLive.net engine để dùng \\usepackage đầy đủ.</div>`;
+    setStatus('error', 'Lỗi — xem chi tiết trong preview');
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// ENGINE 2: TeXLive.net (server-side)
+// ─────────────────────────────────────────────────────────
+async function renderTeXLive() {
+  const body = codeInput.value.trim();
+  if (!body) { setStatus('', 'Không có code để render'); return; }
+
+  const preamble = preambleInput.value.trim();
+
+  // Build full LaTeX document
+  const doc = `\\documentclass[border=4pt]{standalone}
+${preamble}
+\\begin{document}
+${body}
+\\end{document}`;
+
+  setStatus('loading', 'Đang gửi lên TeXLive.net…');
+  preview.innerHTML = '<div class="spinner"></div>';
+
+  try {
+    const formData = new FormData();
+    const blob = new Blob([doc], { type: 'text/plain' });
+    formData.append('filecontents[]', blob, 'document.tex');
+    formData.append('filename[]', 'document.tex');
+    formData.append('engine', 'pdflatex');
+    formData.append('return', 'pdf');
+
+    const resp = await fetch('https://texlive.net/cgi-bin/latexcgi', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!resp.ok) {
+      throw new Error(`HTTP ${resp.status} — TeXLive.net không phản hồi`);
+    }
+
+    const contentType = resp.headers.get('content-type') || '';
+
+    if (contentType.includes('pdf')) {
+      // Success → embed PDF
+      const pdfBlob = await resp.blob();
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+
+      preview.innerHTML = `
+        <iframe src="${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=Fit"
+                type="application/pdf"
+                title="TikZ output PDF">
+        </iframe>`;
+      setStatus('', `✓ TeXLive.net PDF · ${new Date().toLocaleTimeString('vi-VN')}`);
+
+    } else {
+      // Error → show log
+      const logText = await resp.text();
+      const snippet = extractLatexError(logText);
+      preview.innerHTML = `<div class="error-msg">❌ LaTeX compile error:\n\n${snippet}</div>`;
+      setStatus('error', 'LaTeX error — xem log trong preview');
+    }
+
+  } catch (err) {
+    if (err.name === 'TypeError' && err.message.includes('fetch')) {
+      preview.innerHTML = `<div class="error-msg">❌ Không thể kết nối TeXLive.net\n\nKiểm tra:\n• Kết nối internet\n• CORS: chạy file này từ web server (không phải file:// local)\n\n💡 Dùng TikZJax engine nếu offline.</div>`;
+    } else {
+      preview.innerHTML = `<div class="error-msg">❌ ${err.message}</div>`;
+    }
+    setStatus('error', 'Lỗi kết nối server');
+  }
+}
+
+// Extract relevant error from LaTeX log
+function extractLatexError(log) {
+  const lines = log.split('\n');
+  const errorLines = [];
+  let capturing = false;
+  for (const line of lines) {
+    if (line.startsWith('!') || line.includes('Error') || line.includes('error')) {
+      capturing = true;
+    }
+    if (capturing) {
+      errorLines.push(line);
+      if (errorLines.length > 12) break;
+    }
+  }
+  return errorLines.length > 0
+    ? errorLines.join('\n')
+    : log.slice(0, 600) + (log.length > 600 ? '\n...' : '');
+}
+
+// ─────────────────────────────────────────────────────────
+// COPY SVG
+// ─────────────────────────────────────────────────────────
+function copySVG() {
+  const svg = preview.querySelector('svg');
+  if (!svg) return;
+  navigator.clipboard.writeText(svg.outerHTML).then(() => {
+    setStatus('', '✓ Đã copy SVG vào clipboard!');
+  });
+}
+
+// ─────────────────────────────────────────────────────────
+// CLEAR
+// ─────────────────────────────────────────────────────────
+function clearAll() {
+  codeInput.value = '';
+  preview.innerHTML = `<div class="placeholder">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+    </svg>
+    <p>Nhấn <strong>Render</strong> để xem kết quả</p>
+  </div>`;
+  setStatus('', 'Sẵn sàng');
+}
+
+// ─────────────────────────────────────────────────────────
+// KEYBOARD SHORTCUT
+// ─────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    render();
+  }
+});
+
+// ─────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────
+codeInput.value = EXAMPLES[0].code;
+setTimeout(render, 800);
+</script>
+</body>
+</html>
